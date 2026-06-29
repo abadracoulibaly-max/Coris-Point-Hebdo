@@ -119,6 +119,11 @@ tr:hover td{background:var(--navy-light);}
 .credit-btn.EPS.selected{background:#9d174d;border-color:#9d174d;color:#fff;}
 .credit-btn.CONSO.selected{background:#075985;border-color:#075985;color:#fff;}
 .credit-btn.AGRI.selected{background:#14532d;border-color:#14532d;color:#fff;}
+.taux-ok{color:#16a34a;font-weight:700;}
+.taux-mid{color:#f59e0b;font-weight:700;}
+.taux-bad{color:#CC0000;font-weight:700;}
+.obj-bar-wrap{background:var(--border);border-radius:4px;height:6px;margin-top:3px;min-width:60px;}
+.obj-bar{height:6px;border-radius:4px;}
 .badge-manager{background:#f0fdf4;color:#15803d;}
 .badge-caf{background:#fef9ee;color:#92400e;}
 .synth-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
@@ -253,6 +258,7 @@ tr:hover td{background:var(--navy-light);}
 
 <div class="nav-tabs" id="navTabs">
   <button class="nav-tab active" onclick="showTab('saisie',this)">📝 Saisie</button>
+  <button class="nav-tab" onclick="showTab('mesobjectifs',this)">🎯 Mes Objectifs</button>
   <button class="nav-tab manager-only" onclick="showTab('dashboard',this)">📊 Dashboard</button>
   <button class="nav-tab manager-only" onclick="showTab('suivi',this)">🎯 Suivi Hebdo</button>
   <button class="nav-tab manager-only" onclick="showTab('mensuel',this)">📅 Récap Mensuel</button>
@@ -527,14 +533,32 @@ tr:hover td{background:var(--navy-light);}
   </div>
 </div>
 
+<!-- MES OBJECTIFS (CAF) -->
+<div class="view" id="view-mesobjectifs">
+  <div class="section-header"><div class="section-title">🎯 Mes Objectifs</div><div class="section-desc">Votre niveau d'atteinte mensuel</div></div>
+  <div class="filter-bar">
+    <select id="caf_obj_mois" onchange="renderCAFObjectifs()"><option value="">-- Sélectionner un mois --</option></select>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-label">Objectif dossiers</div><div class="kpi-value" id="caf_obj_nb">—</div><div class="kpi-sub">ce mois</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Réalisé</div><div class="kpi-value" id="caf_real_nb">—</div><div class="kpi-sub">dossiers déposés</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Objectif volume</div><div class="kpi-value" id="caf_obj_vol">—</div><div class="kpi-sub">FCFA</div></div>
+    <div class="kpi-card" id="caf_taux_card"><div class="kpi-label">Taux d'atteinte</div><div class="kpi-value" id="caf_taux">—</div><div class="kpi-sub">global</div></div>
+  </div>
+  <div class="card" id="caf_obj_detail" style="text-align:center;padding:40px">
+    <div style="font-size:40px;margin-bottom:12px">🎯</div>
+    <div style="font-size:15px;color:var(--muted)">Sélectionnez un mois pour voir vos objectifs</div>
+  </div>
+</div>
+
 <!-- DASHBOARD -->
 <div class="view" id="view-dashboard">
   <div class="section-header"><div class="section-title">📊 Dashboard</div><div class="section-desc">Vue consolidée — toutes les saisies en temps réel</div></div>
-  <div class="kpi-row">
-    <div class="kpi-card"><div class="kpi-label">Déposés</div><div class="kpi-value" id="kpi_dep">—</div><div class="kpi-sub">dossiers</div></div>
-    <div class="kpi-card blue"><div class="kpi-label">En analyse</div><div class="kpi-value" id="kpi_ana">—</div><div class="kpi-sub">risque + exploit</div></div>
-    <div class="kpi-card gold"><div class="kpi-label">Validés VMEP</div><div class="kpi-value" id="kpi_vmep">—</div><div class="kpi-sub">en attente MEP</div></div>
-    <div class="kpi-card red"><div class="kpi-label">MEP du mois</div><div class="kpi-value" id="kpi_mep">—</div><div class="kpi-sub">dossiers</div></div>
+  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi-card"><div class="kpi-label">Déposés</div><div class="kpi-value" id="kpi_dep">—</div><div class="kpi-sub" id="kpi_dep_vol">volume: —</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">En analyse</div><div class="kpi-value" id="kpi_ana">—</div><div class="kpi-sub" id="kpi_ana_vol">volume: —</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Validés VMEP</div><div class="kpi-value" id="kpi_vmep">—</div><div class="kpi-sub" id="kpi_vmep_vol">volume: —</div></div>
+    <div class="kpi-card red"><div class="kpi-label">MEP du mois</div><div class="kpi-value" id="kpi_mep">—</div><div class="kpi-sub" id="kpi_mep_vol">volume: —</div></div>
   </div>
   <div class="filter-bar">
     <select id="dash_sem" onchange="renderDashboard()"><option value="">Toutes semaines</option></select>
@@ -627,6 +651,21 @@ tr:hover td{background:var(--navy-light);}
       <tbody id="ana_blocage"></tbody>
     </table></div>
   </div>
+  <!-- OBJECTIFS -->
+  <div style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:15px;font-weight:700;color:var(--navy)">🎯 Objectifs vs Réalisé — Dossiers Déposés</div>
+      <div id="obj_edit_btn"></div>
+    </div>
+    <div class="filter-bar" style="margin-bottom:12px">
+      <select id="obj_mois" onchange="renderObjectifs()"><option value="">-- Sélectionner un mois --</option></select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>CAF</th><th>Obj. Nbre</th><th>Réalisé Nbre</th><th>% Nbre</th><th>Obj. Volume</th><th>Réalisé Volume</th><th>% Volume</th><th>Statut</th><th id="obj_edit_col"></th></tr></thead>
+      <tbody id="obj_table"></tbody>
+    </table></div>
+  </div>
+
   <div>
     <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:12px">&#128200; Taux de transformation par CAF</div>
     <div class="table-wrap"><table>
@@ -998,6 +1037,7 @@ function showTab(name,el){
   if(name==="dashboard") renderDashboard();
   if(name==="synthese") renderSynthese();
   if(name==="analyse") renderAnalyse();
+  if(name==="mesobjectifs") { populateCAFObjMois(); }
   if(name==="suivi") { populateSuiviSem(); }
   if(name==="mensuel") { populateMoisSel(); }
   if(name==="admin") { loadUsers(); }
@@ -1097,10 +1137,18 @@ async function renderDashboard(){
   semSel.innerHTML='<option value="">Toutes semaines</option>'+sems.map(s=>`<option${s===cur?" selected":""}>${s}</option>`).join("");
 
   const flt=(m,s,c)=>allData.filter(r=>r.mod===m&&(!s||r.semaine===s)&&(!c||r.caf===c));
-  document.getElementById("kpi_dep").textContent=flt("deposes",sem,caf).length;
-  document.getElementById("kpi_ana").textContent=flt("risque",sem,caf).length+flt("exploit",sem,caf).length;
-  document.getElementById("kpi_vmep").textContent=flt("vmep",sem,caf).length;
-  document.getElementById("kpi_mep").textContent=flt("mep",sem,caf).length;
+  const dep_rows=flt("deposes",sem,caf);
+  const ana_rows=[...flt("risque",sem,caf),...flt("exploit",sem,caf)];
+  const vmep_rows=flt("vmep",sem,caf);
+  const mep_rows=flt("mep",sem,caf);
+  document.getElementById("kpi_dep").textContent=dep_rows.length;
+  document.getElementById("kpi_dep_vol").textContent=fmtM(dep_rows.reduce((s,r)=>s+(r.montant||0),0));
+  document.getElementById("kpi_ana").textContent=ana_rows.length;
+  document.getElementById("kpi_ana_vol").textContent=fmtM(ana_rows.reduce((s,r)=>s+(r.montant||0),0));
+  document.getElementById("kpi_vmep").textContent=vmep_rows.length;
+  document.getElementById("kpi_vmep_vol").textContent=fmtM(vmep_rows.reduce((s,r)=>s+(r.montant||0),0));
+  document.getElementById("kpi_mep").textContent=mep_rows.length;
+  document.getElementById("kpi_mep_vol").textContent=fmtM(mep_rows.reduce((s,r)=>s+(r.montant||0),0));
 
   const rows=flt(mod,sem,caf);
   document.getElementById("dashHead").innerHTML="<tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th><th>Obs.</th><th></th></tr>";
@@ -1273,6 +1321,7 @@ function exportAll(){const sem=document.getElementById("syn_sem").value;let cont
 
 // ====== ANALYSE ======
 async function renderAnalyse(){
+  populateObjMois();
   try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
   const sem=document.getElementById("ana_sem").value;
   const mois=document.getElementById("ana_mois").value;
@@ -1336,6 +1385,247 @@ async function renderAnalyse(){
       return `<tr><td style="font-weight:600;font-size:12px">${r.caf}</td><td style="text-align:center;font-weight:700">${r.d}</td><td style="text-align:center">${r.a}</td><td style="text-align:center">${r.v}</td><td style="text-align:center;font-weight:700;color:var(--success)">${r.m}</td><td style="text-align:center"><span style="font-weight:700;color:${c};font-size:14px">${r.t}%</span><div style="background:var(--border);border-radius:4px;height:5px;margin-top:4px"><div style="width:${r.t}%;background:${c};border-radius:4px;height:5px"></div></div></td><td style="font-weight:600;color:${c}">${p}</td></tr>`;
     }).join("");
   }
+}
+
+// ====== OBJECTIFS ======
+const DEFAULT_OBJECTIFS = {"BAYO Abou": {"nb": 6, "vol": 120000000}, "OUATTARA Aboubakary": {"nb": 6, "vol": 120000000}, "COMPAORÉ Aïda": {"nb": 10, "vol": 40000000}, "KAMAGATE Ali": {"nb": 10, "vol": 90000000}, "BAMBA Bassirou": {"nb": 6, "vol": 120000000}, "NIKIEMA Bénédicte": {"nb": 10, "vol": 20000000}, "KOUAKOU Cynthia": {"nb": 6, "vol": 120000000}, "CISSÉ David": {"nb": 6, "vol": 120000000}, "YAO Armel": {"nb": 10, "vol": 20000000}, "DJÈ Jean Charles": {"nb": 6, "vol": 120000000}, "DRAMAN Jean Michel": {"nb": 6, "vol": 100000000}, "KANGA Jodel": {"nb": 10, "vol": 20000000}, "ONUIYAEGU Kevin Joseph": {"nb": 6, "vol": 120000000}, "KOUACOU Claire": {"nb": 10, "vol": 90000000}, "KPADJIRO Michel": {"nb": 10, "vol": 20000000}, "KOUADIO Marie Ange": {"nb": 10, "vol": 90000000}, "COULIBALY Marie-Edwige": {"nb": 10, "vol": 20000000}, "SORO Felicité": {"nb": 10, "vol": 40000000}, "KONÉ Mohamed": {"nb": 6, "vol": 120000000}, "TIA Natacha": {"nb": 3, "vol": 150000000}, "YOUL Sansan": {"nb": 6, "vol": 120000000}, "GOLI Cédric": {"nb": 10, "vol": 70000000}, "KAMATÉ Tahibatou": {"nb": 10, "vol": 20000000}};
+
+async function loadObjectifs(mois) {
+  // Chercher objectifs dans Supabase pour ce mois
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/objectifs?mois=eq.${mois}&select=*`, {
+      headers:{"apikey":SB_KEY,"Authorization":"Bearer "+(currentSession||SB_KEY)}
+    });
+    if(r.ok) {
+      const data = await r.json();
+      if(data && data.length > 0) {
+        // Reconstruire objet par caf
+        const obj = {};
+        data.forEach(d => obj[d.caf] = {nb: d.nb_objectif, vol: d.vol_objectif});
+        return obj;
+      }
+    }
+  } catch(e) {}
+  return DEFAULT_OBJECTIFS;
+}
+
+async function saveObjectif(caf, mois, nb, vol) {
+  const r = await fetch(`${SB_URL}/rest/v1/objectifs`, {
+    method:"POST",
+    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+(currentSession||SB_KEY),"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},
+    body: JSON.stringify({caf, mois, nb_objectif:nb, vol_objectif:vol})
+  });
+  return r.ok;
+}
+
+async function renderObjectifs() {
+  const mois = document.getElementById("obj_mois").value;
+  if(!mois) {
+    document.getElementById("obj_table").innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">Sélectionnez un mois</div></div></td></tr>';
+    return;
+  }
+
+  // Charger objectifs et données réelles
+  const objectifs = await loadObjectifs(mois);
+  const deposes = allData.filter(r => r.mod==="deposes" && r.date && r.date.split("T")[0].startsWith(mois));
+
+  // Bouton modifier (managers seulement)
+  const editBtn = document.getElementById("obj_edit_btn");
+  const editCol = document.getElementById("obj_edit_col");
+  if(currentRole === "manager") {
+    editBtn.innerHTML = '<button onclick="editObjectifs()" style="background:var(--gold);color:var(--navy);border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">✏️ Modifier objectifs</button>';
+    editCol.textContent = "";
+  }
+
+  const CAFS = Object.keys(DEFAULT_OBJECTIFS);
+  const rows = CAFS.map(caf => {
+    const obj = objectifs[caf] || DEFAULT_OBJECTIFS[caf];
+    const real_rows = deposes.filter(r => r.caf === caf);
+    const real_nb = real_rows.length;
+    const real_vol = real_rows.reduce((s,r) => s+(r.montant||0), 0);
+    const pct_nb = obj.nb ? Math.round((real_nb/obj.nb)*100) : 0;
+    const pct_vol = obj.vol ? Math.round((real_vol/obj.vol)*100) : 0;
+    return {caf, obj_nb:obj.nb, obj_vol:obj.vol, real_nb, real_vol, pct_nb, pct_vol};
+  });
+
+  // Filtre CAF si profil CAF
+  const displayRows = currentRole === "caf" 
+    ? rows.filter(r => r.caf === currentUser.nom)
+    : rows;
+
+  const totObjNb = rows.reduce((s,r)=>s+r.obj_nb,0);
+  const totObjVol = rows.reduce((s,r)=>s+r.obj_vol,0);
+  const totRealNb = rows.reduce((s,r)=>s+r.real_nb,0);
+  const totRealVol = rows.reduce((s,r)=>s+r.real_vol,0);
+  const totPctNb = totObjNb ? Math.round((totRealNb/totObjNb)*100) : 0;
+  const totPctVol = totObjVol ? Math.round((totRealVol/totObjVol)*100) : 0;
+
+  function tauxCell(pct) {
+    const c = pct>=100?"#16a34a":pct>=70?"#f59e0b":"#CC0000";
+    const w = Math.min(pct,100);
+    return `<td><span style="font-weight:700;color:${c}">${pct}%</span><div class="obj-bar-wrap"><div class="obj-bar" style="width:${w}%;background:${c}"></div></div></td>`;
+  }
+
+  function statutCell(pct_nb, pct_vol) {
+    const avg = (pct_nb+pct_vol)/2;
+    if(avg>=100) return '<span style="background:#f0fdf4;color:#15803d;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">✅ Objectif atteint</span>';
+    if(avg>=70) return '<span style="background:#fffbeb;color:#92400e;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">🟠 En cours</span>';
+    return '<span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">🔴 En retard</span>';
+  }
+
+  document.getElementById("obj_table").innerHTML = displayRows.map(r => `<tr>
+    <td style="font-weight:600;font-size:12px">${r.caf}</td>
+    <td style="text-align:center">${r.obj_nb}</td>
+    <td style="text-align:center;font-weight:700">${r.real_nb}</td>
+    ${tauxtCell(r.pct_nb)}
+    <td style="text-align:right">${fmtM(r.obj_vol)}</td>
+    <td style="text-align:right;font-weight:700">${fmtM(r.real_vol)}</td>
+    ${tauxtCell(r.pct_vol)}
+    <td>${statutCell(r.pct_nb, r.pct_vol)}</td>
+    <td></td>
+  </tr>`).join("") + (currentRole==="manager" ? `<tr style="background:var(--navy-light);font-weight:700">
+    <td>TOTAL</td>
+    <td style="text-align:center">${totObjNb}</td>
+    <td style="text-align:center">${totRealNb}</td>
+    ${tauxtCell(totPctNb)}
+    <td style="text-align:right">${fmtM(totObjVol)}</td>
+    <td style="text-align:right">${fmtM(totRealVol)}</td>
+    ${tauxtCell(totPctVol)}
+    <td>${statutCell(totPctNb,totPctVol)}</td>
+    <td></td>
+  </tr>` : "");
+}
+
+function editObjectifs() {
+  const mois = document.getElementById("obj_mois").value;
+  if(!mois) { toast("Sélectionnez un mois d'abord","error"); return; }
+
+  const modal = document.createElement("div");
+  modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:300;overflow-y:auto;padding:20px";
+  
+  const CAFS = Object.keys(DEFAULT_OBJECTIFS);
+  modal.innerHTML = `<div style="background:white;border-radius:16px;padding:28px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto">
+    <div style="font-size:17px;font-weight:700;color:var(--navy);margin-bottom:6px">✏️ Modifier les objectifs — ${new Date(mois+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px">Modifiez les objectifs puis cliquez Enregistrer</div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <thead style="background:var(--navy);color:white"><tr><th style="padding:8px;text-align:left">CAF</th><th style="padding:8px;text-align:center">Nbre objectif</th><th style="padding:8px;text-align:right">Volume objectif (FCFA)</th></tr></thead>
+      <tbody>
+        ${CAFS.map(caf => {
+          const obj = DEFAULT_OBJECTIFS[caf];
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:6px 8px;font-weight:500">${caf}</td>
+            <td style="padding:6px 8px;text-align:center"><input type="number" id="obj_nb_${caf.replace(/[^a-zA-Z]/g,'_')}" value="${obj.nb}" style="width:60px;padding:4px;border:1px solid var(--border);border-radius:4px;text-align:center"></td>
+            <td style="padding:6px 8px;text-align:right"><input type="number" id="obj_vol_${caf.replace(/[^a-zA-Z]/g,'_')}" value="${obj.vol}" style="width:120px;padding:4px;border:1px solid var(--border);border-radius:4px;text-align:right"></td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button onclick="saveAllObjectifs('${mois}')" style="flex:1;background:var(--navy);color:white;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">✅ Enregistrer</button>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="flex:1;border:1.5px solid var(--border);background:none;padding:12px;border-radius:8px;font-size:14px;cursor:pointer">Annuler</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function saveAllObjectifs(mois) {
+  const CAFS = Object.keys(DEFAULT_OBJECTIFS);
+  showLoad(true,"Enregistrement des objectifs...");
+  let ok = 0;
+  for(const caf of CAFS) {
+    const key = caf.replace(/[^a-zA-Z]/g,'_');
+    const nb = parseInt(document.getElementById("obj_nb_"+key)?.value||0);
+    const vol = parseInt(document.getElementById("obj_vol_"+key)?.value||0);
+    if(await saveObjectif(caf, mois, nb, vol)) ok++;
+  }
+  showLoad(false);
+  document.querySelector("[style*='position:fixed'][style*='inset:0'][style*='rgba']")?.remove();
+  toast(`✅ ${ok} objectifs enregistrés`);
+  renderObjectifs();
+}
+
+// Peupler select mois objectifs
+function populateObjMois() {
+  const moisList=[...new Set(allData.filter(r=>r.date).map(r=>r.date.split("T")[0].substring(0,7)))].sort().reverse();
+  const sel=document.getElementById("obj_mois");
+  const cur=sel.value;
+  // Ajouter aussi les mois futurs
+  const today = new Date();
+  const currentMois = today.toISOString().substring(0,7);
+  const allMois = [...new Set([...moisList, currentMois])].sort().reverse();
+  sel.innerHTML='<option value="">-- Sélectionner un mois --</option>'+allMois.map(m=>{
+    const[y,mo]=m.split("-");
+    const label=new Date(y,mo-1,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+    return `<option value="${m}"${m===cur?" selected":""}>${label}</option>`;
+  }).join("");
+  // Auto-sélectionner mois courant
+  if(!cur) { sel.value=currentMois; renderObjectifs(); }
+}
+
+// ====== CAF OBJECTIFS ======
+async function renderCAFObjectifs() {
+  const mois = document.getElementById("caf_obj_mois").value;
+  if(!mois) return;
+  try{allData=await sbGet();}catch(e){}
+
+  const objectifs = await loadObjectifs(mois);
+  const caf = currentUser.nom;
+  const obj = objectifs[caf] || {nb:0, vol:0};
+  const deposes = allData.filter(r => r.mod==="deposes" && r.date && r.date.split("T")[0].startsWith(mois) && r.caf===caf);
+  const real_nb = deposes.length;
+  const real_vol = deposes.reduce((s,r)=>s+(r.montant||0),0);
+  const pct_nb = obj.nb ? Math.round((real_nb/obj.nb)*100) : 0;
+  const pct_vol = obj.vol ? Math.round((real_vol/obj.vol)*100) : 0;
+  const avg = Math.round((pct_nb+pct_vol)/2);
+  const color = avg>=100?"#16a34a":avg>=70?"#f59e0b":"#CC0000";
+
+  document.getElementById("caf_obj_nb").textContent = obj.nb;
+  document.getElementById("caf_real_nb").textContent = real_nb;
+  document.getElementById("caf_obj_vol").textContent = fmtM(obj.vol);
+  document.getElementById("caf_taux").textContent = avg+"%";
+  document.getElementById("caf_taux").style.color = color;
+  document.getElementById("caf_taux_card").style.borderTopColor = color;
+
+  const statut = avg>=100?"✅ Objectif atteint !":avg>=70?"🟠 Continuez, vous y êtes presque !":"🔴 Encore un effort !";
+
+  document.getElementById("caf_obj_detail").innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;text-align:left">
+      <div style="background:var(--navy-light);border-radius:10px;padding:20px">
+        <div style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:8px">Dossiers</div>
+        <div style="font-size:28px;font-weight:700;color:var(--navy)">${real_nb} <span style="font-size:14px;color:var(--muted)">/ ${obj.nb}</span></div>
+        <div style="background:var(--border);border-radius:4px;height:8px;margin:10px 0">
+          <div style="width:${Math.min(pct_nb,100)}%;background:${pct_nb>=100?"#16a34a":pct_nb>=70?"#f59e0b":"#CC0000"};border-radius:4px;height:8px"></div>
+        </div>
+        <div style="font-weight:700;color:${pct_nb>=100?"#16a34a":pct_nb>=70?"#f59e0b":"#CC0000"}">${pct_nb}%</div>
+      </div>
+      <div style="background:var(--navy-light);border-radius:10px;padding:20px">
+        <div style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:8px">Volume</div>
+        <div style="font-size:22px;font-weight:700;color:var(--navy)">${fmtM(real_vol)} <span style="font-size:12px;color:var(--muted)">/ ${fmtM(obj.vol)}</span></div>
+        <div style="background:var(--border);border-radius:4px;height:8px;margin:10px 0">
+          <div style="width:${Math.min(pct_vol,100)}%;background:${pct_vol>=100?"#16a34a":pct_vol>=70?"#f59e0b":"#CC0000"};border-radius:4px;height:8px"></div>
+        </div>
+        <div style="font-weight:700;color:${pct_vol>=100?"#16a34a":pct_vol>=70?"#f59e0b":"#CC0000"}">${pct_vol}%</div>
+      </div>
+    </div>
+    <div style="margin-top:20px;padding:16px;background:${avg>=100?"#f0fdf4":avg>=70?"#fffbeb":"#fef2f2"};border-radius:10px;text-align:center;font-size:15px;font-weight:600;color:${color}">${statut}</div>
+    <div style="margin-top:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:10px">Détail des dossiers déposés ce mois</div>
+      ${deposes.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Type</th><th>Montant</th></tr></thead><tbody>${deposes.map(r=>`<tr><td>${fmtD(r.date)}</td><td><strong>${r.nom}</strong></td><td><span class="badge badge-${r.type}">${r.type}</span></td><td class="amount">${fmtM(r.montant)}</td></tr>`).join("")}</tbody></table></div>` : '<div style="color:var(--muted);font-size:13px">Aucun dossier déposé ce mois</div>'}
+    </div>`;
+}
+
+function populateCAFObjMois() {
+  const today = new Date();
+  const currentMois = today.toISOString().substring(0,7);
+  const moisList = [...new Set([...allData.filter(r=>r.date).map(r=>r.date.split("T")[0].substring(0,7)), currentMois])].sort().reverse();
+  const sel = document.getElementById("caf_obj_mois");
+  sel.innerHTML = '<option value="">-- Sélectionner un mois --</option>' + moisList.map(m=>{
+    const[y,mo]=m.split("-");
+    const label=new Date(y,mo-1,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+    return `<option value="${m}">${label}</option>`;
+  }).join("");
+  sel.value = currentMois;
+  renderCAFObjectifs();
 }
 
 // ====== INIT ======
