@@ -900,8 +900,7 @@ function exportSuivi() {
     const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim());
     if(cells.length) csv.push(cells.join(";"));
   });
-  const b=new Blob(["﻿"+csv.join("
-")],{type:"text/csv;charset=utf-8;"});
+  const b=new Blob(["﻿"+csv.join("\n")],{type:"text/csv;charset=utf-8;"});
   const a=document.createElement("a");a.href=URL.createObjectURL(b);
   a.download=`CMF_Suivi_${sem.replace(" ","_")}.csv`;a.click();
   toast("✅ Export téléchargé");
@@ -984,8 +983,7 @@ function exportMensuel() {
     const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim().replace(/\s+/g," "));
     if(cells.length) csv.push(cells.join(";"));
   });
-  const b=new Blob(["﻿"+csv.join("
-")],{type:"text/csv;charset=utf-8;"});
+  const b=new Blob(["﻿"+csv.join("\n")],{type:"text/csv;charset=utf-8;"});
   const a=document.createElement("a");a.href=URL.createObjectURL(b);
   a.download=`CMF_Mensuel_${mois}.csv`;a.click();
   toast("✅ Export mensuel téléchargé");
