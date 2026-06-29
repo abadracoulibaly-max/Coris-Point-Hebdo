@@ -264,7 +264,7 @@ tr:hover td{background:var(--navy-light);}
         <div style="font-size:12px;color:#b91c1c" id="alerteBannerText"></div>
       </div>
     </div>
-    <button onclick="showTab('analyse',document.querySelector('.nav-tab[onclick*=analyse]'))" 
+    <button onclick="allerVersAnalyse()" 
       style="background:#CC0000;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:Inter,sans-serif">
       Voir détails →
     </button>
@@ -1406,6 +1406,30 @@ function exportCSV(){const mod=document.getElementById("dash_mod").value;const s
 function exportSuivi(){const sem=document.getElementById("suivi_sem").value;if(!sem){toast("Sélectionnez une semaine","error");return;}const rows=document.querySelectorAll("#suiviTable tr");const csv=["CAF;Prévus;Vol.Prévu;Déposés;Vol.Déposé;Écart Nbre;Écart Volume;Statut"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim());if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Suivi_"+sem.replace(" ","_")+".csv");toast("Export téléchargé");}
 function exportMensuel(){const mois=document.getElementById("mens_mois").value;if(!mois){toast("Sélectionnez un mois","error");return;}const rows=document.querySelectorAll("#mensuelTable tr");const csv=["CAF;Nb;Volume;BFR;INVEST;MICRO;Ticket moyen;% volume"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim().replace(/\s+/g," "));if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Mensuel_"+mois+".csv");toast("Export téléchargé");}
 function exportAll(){const sem=document.getElementById("syn_sem").value;let content="";for(const[mod,M]of Object.entries(MODS)){const rows=allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem));if(rows.length)content+="\n\n=== "+M.l.toUpperCase()+" ===\n"+toCSV(rows);}if(!content){toast("Aucune donnée","error");return;}dl(content,"CMF_Synthese_"+(sem||"complet")+".csv");toast("Export complet téléchargé");}
+
+// ====== ALERTES CAF ======
+function allerVersAnalyse() {
+  // Activer l'onglet Analyse
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  document.querySelectorAll(".nav-tab").forEach(t=>t.classList.remove("active"));
+  document.getElementById("view-analyse").classList.add("active");
+  document.getElementById("moduleBar").style.display = "none";
+  // Activer le bon onglet nav
+  document.querySelectorAll(".nav-tab").forEach(t=>{
+    if(t.getAttribute("onclick") && t.getAttribute("onclick").includes("analyse")) {
+      t.classList.add("active");
+    }
+  });
+  // Charger les données et afficher les alertes
+  setTimeout(async () => {
+    try{ allData = await sbGet(); setStatus(true); } catch(e){ setStatus(false); }
+    renderAlertesCAF(allData);
+    renderAnalyse();
+    // Scroller vers le tableau des alertes CAF
+    const el = document.getElementById("alerte_caf_table");
+    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+  }, 100);
+}
 
 // ====== ALERTES CAF ======
 function joursOuvresDepuis(dateStr) {
