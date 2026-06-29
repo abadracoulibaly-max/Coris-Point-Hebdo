@@ -133,6 +133,8 @@
 <div class="nav-tabs">
   <button class="nav-tab active" onclick="showTab('saisie',this)">📝 Saisie</button>
   <button class="nav-tab" onclick="showTab('dashboard',this)">📊 Dashboard</button>
+  <button class="nav-tab" onclick="showTab('suivi',this)">🎯 Suivi Hebdo</button>
+  <button class="nav-tab" onclick="showTab('mensuel',this)">📅 Récap Mensuel</button>
   <button class="nav-tab" onclick="showTab('synthese',this)">🗂 Synthèse</button>
 </div>
 
@@ -408,6 +410,77 @@
   <div id="synthDetail"></div>
 </div>
 
+
+<!-- SUIVI HEBDO -->
+<div class="view" id="view-suivi">
+  <div class="section-header">
+    <div class="section-title">🎯 Suivi Hebdomadaire — Prévu vs Réalisé</div>
+    <div class="section-desc">Comparaison en temps réel des prévisions comité vs dossiers déposés par CAF</div>
+  </div>
+  <div class="filter-bar">
+    <select id="suivi_sem" onchange="renderSuivi()"><option value="">-- Sélectionner une semaine --</option></select>
+    <button class="btn-export" onclick="exportSuivi()">⬇ CSV</button>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-label">Prévus</div><div class="kpi-value" id="sv_prevu">—</div><div class="kpi-sub">dossiers planifiés</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Déposés</div><div class="kpi-value" id="sv_realise">—</div><div class="kpi-sub">dossiers réels</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Volume prévu</div><div class="kpi-value" id="sv_vol_prevu">—</div><div class="kpi-sub">FCFA</div></div>
+    <div class="kpi-card" id="sv_ecart_card"><div class="kpi-label">Écart global</div><div class="kpi-value" id="sv_ecart">—</div><div class="kpi-sub" id="sv_ecart_sub">dossiers</div></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>CAF</th>
+          <th>Dossiers prévus</th>
+          <th>Volume prévu</th>
+          <th>Dossiers déposés</th>
+          <th>Volume déposé</th>
+          <th>Écart nbre</th>
+          <th>Écart volume</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody id="suiviTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- RECAP MENSUEL -->
+<div class="view" id="view-mensuel">
+  <div class="section-header">
+    <div class="section-title">📅 Récapitulatif Mensuel</div>
+    <div class="section-desc">Dossiers déposés du 1er au 30/31 — par CAF</div>
+  </div>
+  <div class="filter-bar">
+    <select id="mens_mois" onchange="renderMensuel()"><option value="">-- Sélectionner un mois --</option></select>
+    <button class="btn-export" onclick="exportMensuel()">⬇ CSV</button>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-label">Total dossiers</div><div class="kpi-value" id="mn_total">—</div><div class="kpi-sub">du mois</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Volume total</div><div class="kpi-value" id="mn_volume">—</div><div class="kpi-sub">FCFA</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Ticket moyen</div><div class="kpi-value" id="mn_moyen">—</div><div class="kpi-sub">FCFA</div></div>
+    <div class="kpi-card red"><div class="kpi-label">CAF actifs</div><div class="kpi-value" id="mn_cafs">—</div><div class="kpi-sub">sur 23</div></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>CAF</th>
+          <th>Nb dossiers</th>
+          <th>Volume total</th>
+          <th>BFR</th>
+          <th>INVEST</th>
+          <th>MICRO</th>
+          <th>Ticket moyen</th>
+          <th>% du volume total</th>
+        </tr>
+      </thead>
+      <tbody id="mensuelTable"></tbody>
+    </table>
+  </div>
+</div>
+
 </div>
 <div class="toast" id="toast"></div>
 
@@ -508,6 +581,8 @@ function showTab(name,el){
   document.getElementById("moduleBar").style.display=name==="saisie"?"flex":"none";
   if(name==="dashboard") renderDashboard();
   if(name==="synthese") renderSynthese();
+  if(name==="suivi") { populateSuiviSem(); }
+  if(name==="mensuel") { populateMoisSel(); }
 }
 
 function showModule(mod,el){
@@ -706,6 +781,214 @@ function exportAll(){
   if(!content){toast("Aucune donnée","error");return;}
   dl(content,`CMF_Synthese_${sem||"complet"}.csv`);
   toast("✅ Export complet téléchargé");
+}
+
+// ====== SUIVI HEBDO ======
+function populateSuiviSem() {
+  const sems = [...new Set(allData
+    .filter(r=>r.mod==="comite"||r.mod==="deposes")
+    .map(r=>r.semaine).filter(Boolean))].sort().reverse();
+  const sel = document.getElementById("suivi_sem");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- Sélectionner une semaine --</option>' +
+    sems.map(s=>`<option${s===cur?" selected":""}>${s}</option>`).join("");
+}
+
+function populateMoisSel() {
+  const mois = [...new Set(allData
+    .filter(r=>r.mod==="deposes"&&r.date)
+    .map(r=>r.date.split("T")[0].substring(0,7)))].sort().reverse();
+  const sel = document.getElementById("mens_mois");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- Sélectionner un mois --</option>' +
+    mois.map(m=>{
+      const [y,mo]=m.split("-");
+      const label=new Date(y,mo-1,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+      return `<option value="${m}"${m===cur?" selected":""}>${label}</option>`;
+    }).join("");
+}
+
+async function renderSuivi() {
+  if(!document.getElementById("suivi_sem").value) return;
+  const sem = document.getElementById("suivi_sem").value;
+
+  // Recharger données fraîches
+  try { allData = await sbGet(); } catch(e){}
+
+  const CAF_LIST = [
+    "OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou",
+    "KONÉ Mohamed","BAMBA Bassirou","CISSÉ David","COULIBALY Marie-Edwige",
+    "GOLI Cédric","KPADJIRO Michel","KANGA Jodel","YAO Armel","KOUADIO Marie Ange",
+    "KAMAGATE Ali","COMPAORÉ Aïda","SORO Felicité","DJÈ Jean Charles",
+    "DRAMAN Jean Michel","YOUL Sansan","NIKIEMA Bénédicte","KOUACOU Claire",
+    "TIA Natacha","KAMATÉ Tahibatou"
+  ];
+
+  // Prévisions = module comite avec date dans la semaine sélectionnée
+  const prevus = allData.filter(r=>r.mod==="comite" && r.semaine===sem);
+  // Déposés = module deposes avec date dans la semaine sélectionnée
+  const deposes = allData.filter(r=>r.mod==="deposes" && r.semaine===sem);
+
+  // Agréger par CAF
+  const data = CAF_LIST.map(caf => {
+    const p = prevus.filter(r=>r.caf===caf);
+    const d = deposes.filter(r=>r.caf===caf);
+    const nb_prevu = p.length;
+    const nb_realise = d.length;
+    const vol_prevu = p.reduce((s,r)=>s+(r.montant||0),0);
+    const vol_realise = d.reduce((s,r)=>s+(r.montant||0),0);
+    const ecart_nb = nb_realise - nb_prevu;
+    const ecart_vol = vol_realise - vol_prevu;
+    return {caf, nb_prevu, nb_realise, vol_prevu, vol_realise, ecart_nb, ecart_vol};
+  }).filter(r=>r.nb_prevu>0||r.nb_realise>0);
+
+  // KPIs globaux
+  const tot_prevu = data.reduce((s,r)=>s+r.nb_prevu,0);
+  const tot_realise = data.reduce((s,r)=>s+r.nb_realise,0);
+  const tot_vol_prevu = data.reduce((s,r)=>s+r.vol_prevu,0);
+  const ecart_global = tot_realise - tot_prevu;
+
+  document.getElementById("sv_prevu").textContent = tot_prevu;
+  document.getElementById("sv_realise").textContent = tot_realise;
+  document.getElementById("sv_vol_prevu").textContent = fmtM(tot_vol_prevu);
+  document.getElementById("sv_ecart").textContent = (ecart_global>=0?"+":"")+ecart_global;
+  document.getElementById("sv_ecart_sub").textContent = "dossiers vs prévu";
+  const ecartCard = document.getElementById("sv_ecart_card");
+  ecartCard.style.borderTopColor = ecart_global>=0?"#16a34a":"#CC0000";
+  document.getElementById("sv_ecart").style.color = ecart_global>=0?"#16a34a":"#CC0000";
+
+  if(!data.length) {
+    document.getElementById("suiviTable").innerHTML=`<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">Aucune donnée pour ${sem}</div><div class="empty-sub">Vérifiez que des prévisions et des dépôts ont été saisis</div></div></td></tr>`;
+    return;
+  }
+
+  document.getElementById("suiviTable").innerHTML = data.map(r => {
+    const ok_nb = r.ecart_nb >= 0;
+    const ok_vol = r.ecart_vol >= 0;
+    const statut = r.nb_prevu===0 ? '<span style="color:var(--muted);font-size:11px">Non planifié</span>' :
+      r.nb_realise===0 ? '<span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">⚠️ Aucun dépôt</span>' :
+      ok_nb ? '<span style="background:#f0fdf4;color:#15803d;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">✅ Objectif atteint</span>' :
+              '<span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">🔴 En retard</span>';
+    return `<tr>
+      <td style="font-weight:600;font-size:12px">${r.caf}</td>
+      <td style="text-align:center">${r.nb_prevu}</td>
+      <td style="text-align:right" class="amount">${fmtM(r.vol_prevu)}</td>
+      <td style="text-align:center;font-weight:600">${r.nb_realise}</td>
+      <td style="text-align:right" class="amount">${fmtM(r.vol_realise)}</td>
+      <td style="text-align:center;font-weight:700;color:${ok_nb?"#16a34a":"#CC0000"}">${r.ecart_nb>=0?"+":""}${r.ecart_nb}</td>
+      <td style="text-align:right;font-weight:700;color:${ok_vol?"#16a34a":"#CC0000"}">${r.ecart_vol>=0?"+":""}${fmtM(Math.abs(r.ecart_vol))}</td>
+      <td>${statut}</td>
+    </tr>`;
+  }).join("") + `<tr style="background:var(--navy-light);font-weight:700">
+    <td>TOTAL</td>
+    <td style="text-align:center">${tot_prevu}</td>
+    <td style="text-align:right">${fmtM(data.reduce((s,r)=>s+r.vol_prevu,0))}</td>
+    <td style="text-align:center">${tot_realise}</td>
+    <td style="text-align:right">${fmtM(data.reduce((s,r)=>s+r.vol_realise,0))}</td>
+    <td style="text-align:center;color:${ecart_global>=0?"#16a34a":"#CC0000"}">${ecart_global>=0?"+":""}${ecart_global}</td>
+    <td style="text-align:right;color:${(data.reduce((s,r)=>s+r.ecart_vol,0))>=0?"#16a34a":"#CC0000"}">${fmtM(Math.abs(data.reduce((s,r)=>s+r.ecart_vol,0)))}</td>
+    <td></td>
+  </tr>`;
+}
+
+function exportSuivi() {
+  const sem = document.getElementById("suivi_sem").value;
+  if(!sem){toast("Sélectionnez une semaine","error");return;}
+  const rows = document.querySelectorAll("#suiviTable tr");
+  const csv = ["CAF;Prévus;Vol.Prévu;Déposés;Vol.Déposé;Écart Nbre;Écart Vol;Statut"];
+  rows.forEach(r=>{
+    const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim());
+    if(cells.length) csv.push(cells.join(";"));
+  });
+  const b=new Blob(["﻿"+csv.join("
+")],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);
+  a.download=`CMF_Suivi_${sem.replace(" ","_")}.csv`;a.click();
+  toast("✅ Export téléchargé");
+}
+
+// ====== RECAP MENSUEL ======
+async function renderMensuel() {
+  const mois = document.getElementById("mens_mois").value;
+  if(!mois) return;
+  try { allData = await sbGet(); } catch(e){}
+
+  const [y,m] = mois.split("-");
+  const deposes = allData.filter(r=>{
+    if(r.mod!=="deposes"||!r.date) return false;
+    const d = r.date.split("T")[0];
+    return d.startsWith(mois);
+  });
+
+  // Agréger par CAF
+  const cafMap = {};
+  deposes.forEach(r=>{
+    if(!cafMap[r.caf]) cafMap[r.caf]={caf:r.caf,nb:0,vol:0,BFR:0,INVEST:0,MICRO:0};
+    cafMap[r.caf].nb++;
+    cafMap[r.caf].vol+=(r.montant||0);
+    if(r.type) cafMap[r.caf][r.type]=(cafMap[r.caf][r.type]||0)+1;
+  });
+
+  const rows = Object.values(cafMap).sort((a,b)=>b.vol-a.vol);
+  const totVol = rows.reduce((s,r)=>s+r.vol,0);
+  const totNb = rows.reduce((s,r)=>s+r.nb,0);
+
+  document.getElementById("mn_total").textContent = totNb;
+  document.getElementById("mn_volume").textContent = fmtM(totVol);
+  document.getElementById("mn_moyen").textContent = totNb ? fmtM(totVol/totNb) : "—";
+  document.getElementById("mn_cafs").textContent = rows.length;
+
+  if(!rows.length){
+    document.getElementById("mensuelTable").innerHTML=`<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">Aucun dossier déposé ce mois</div></div></td></tr>`;
+    return;
+  }
+
+  document.getElementById("mensuelTable").innerHTML = rows.map(r=>{
+    const pct = totVol ? ((r.vol/totVol)*100).toFixed(1) : 0;
+    const barW = Math.round(pct);
+    return `<tr>
+      <td style="font-weight:600;font-size:12px">${r.caf}</td>
+      <td style="text-align:center;font-weight:700;font-size:15px;color:var(--navy)">${r.nb}</td>
+      <td style="text-align:right" class="amount">${fmt(r.vol)}</td>
+      <td style="text-align:center"><span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">${r.BFR||0}</span></td>
+      <td style="text-align:center"><span style="background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">${r.INVEST||0}</span></td>
+      <td style="text-align:center"><span style="background:#fef9ee;color:#92400e;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">${r.MICRO||0}</span></td>
+      <td style="text-align:right">${fmtM(r.nb?r.vol/r.nb:0)}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;background:var(--border);border-radius:4px;height:6px">
+            <div style="width:${barW}%;background:var(--blue);border-radius:4px;height:6px"></div>
+          </div>
+          <span style="font-size:11px;font-weight:600;color:var(--navy);white-space:nowrap">${pct}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join("") + `<tr style="background:var(--navy-light);font-weight:700">
+    <td>TOTAL</td>
+    <td style="text-align:center;font-size:15px;color:var(--navy)">${totNb}</td>
+    <td style="text-align:right">${fmt(totVol)}</td>
+    <td style="text-align:center">${rows.reduce((s,r)=>s+(r.BFR||0),0)}</td>
+    <td style="text-align:center">${rows.reduce((s,r)=>s+(r.INVEST||0),0)}</td>
+    <td style="text-align:center">${rows.reduce((s,r)=>s+(r.MICRO||0),0)}</td>
+    <td style="text-align:right">${fmtM(totNb?totVol/totNb:0)}</td>
+    <td style="text-align:center">100%</td>
+  </tr>`;
+}
+
+function exportMensuel() {
+  const mois = document.getElementById("mens_mois").value;
+  if(!mois){toast("Sélectionnez un mois","error");return;}
+  const rows = document.querySelectorAll("#mensuelTable tr");
+  const csv = ["CAF;Nb dossiers;Volume total;BFR;INVEST;MICRO;Ticket moyen;% volume"];
+  rows.forEach(r=>{
+    const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim().replace(/\s+/g," "));
+    if(cells.length) csv.push(cells.join(";"));
+  });
+  const b=new Blob(["﻿"+csv.join("
+")],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);
+  a.download=`CMF_Mensuel_${mois}.csv`;a.click();
+  toast("✅ Export mensuel téléchargé");
 }
 
 // ====== INIT ======
