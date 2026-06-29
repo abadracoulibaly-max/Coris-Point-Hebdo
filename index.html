@@ -111,6 +111,14 @@ tr:hover td{background:var(--navy-light);}
 .badge-BFR{background:#dbeafe;color:#1e40af;}
 .badge-INVEST{background:#f0fdf4;color:#15803d;}
 .badge-MICRO{background:#fef9ee;color:#92400e;}
+.badge-Causé{background:#f3e8ff;color:#6b21a8;}
+.badge-EPS{background:#fce7f3;color:#9d174d;}
+.badge-Conso{background:#e0f2fe;color:#075985;}
+.badge-Agri{background:#dcfce7;color:#14532d;}
+.credit-btn.CAUSE.selected{background:#6b21a8;border-color:#6b21a8;color:#fff;}
+.credit-btn.EPS.selected{background:#9d174d;border-color:#9d174d;color:#fff;}
+.credit-btn.CONSO.selected{background:#075985;border-color:#075985;color:#fff;}
+.credit-btn.AGRI.selected{background:#14532d;border-color:#14532d;color:#fff;}
 .badge-manager{background:#f0fdf4;color:#15803d;}
 .badge-caf{background:#fef9ee;color:#92400e;}
 .synth-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
@@ -249,6 +257,7 @@ tr:hover td{background:var(--navy-light);}
   <button class="nav-tab manager-only" onclick="showTab('suivi',this)">🎯 Suivi Hebdo</button>
   <button class="nav-tab manager-only" onclick="showTab('mensuel',this)">📅 Récap Mensuel</button>
   <button class="nav-tab manager-only" onclick="showTab('synthese',this)">🗂 Synthèse</button>
+  <button class="nav-tab manager-only" onclick="showTab('analyse',this)">🔬 Analyse</button>
   <button class="nav-tab manager-only" onclick="showTab('admin',this)">👥 Utilisateurs</button>
 </div>
 
@@ -282,6 +291,10 @@ tr:hover td{background:var(--navy-light);}
             <button class="credit-btn BFR" onclick="selCredit('d','BFR',this)">BFR</button>
             <button class="credit-btn INVEST" onclick="selCredit('d','INVEST',this)">INVEST</button>
             <button class="credit-btn MICRO" onclick="selCredit('d','MICRO',this)">MICRO</button>
+            <button class="credit-btn CAUSE" onclick="selCredit('d','Causé',this)">Causé</button>
+            <button class="credit-btn EPS" onclick="selCredit('d','EPS',this)">EPS</button>
+            <button class="credit-btn CONSO" onclick="selCredit('d','Conso',this)">Conso</button>
+            <button class="credit-btn AGRI" onclick="selCredit('d','Agri',this)">Agri</button>
           </div><input type="hidden" id="d_type">
         </div>
         <div class="form-group full"><label>Activité / Secteur</label><input type="text" id="d_secteur" placeholder="Commerce, BTP, Agriculture..."></div>
@@ -298,7 +311,7 @@ tr:hover td{background:var(--navy-light);}
       <div class="form-grid">
         <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="c_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
         <div class="form-group"><label class="required">Date comité prévue</label><input type="date" id="c_date"></div>
-        <div class="form-group"><label class="required">Code client</label><input type="text" id="c_code" placeholder="ex: CI-00123"></div>
+        <div class="form-group"><label>Code client <span style="color:var(--muted);font-weight:400;font-size:10px">(optionnel)</span></label><input type="text" id="c_code" placeholder="ex: CI-00123 ou laisser vide"></div>
         <div class="form-group"><label class="required">Nom du client</label><input type="text" id="c_nom"></div>
         <div class="form-group"><label class="required">Montant (FCFA)</label><input type="number" id="c_montant" min="0"></div>
         <div class="form-group"><label class="required">Durée (mois)</label><input type="number" id="c_duree" min="1"></div>
@@ -307,6 +320,10 @@ tr:hover td{background:var(--navy-light);}
             <button class="credit-btn BFR" onclick="selCredit('c','BFR',this)">BFR</button>
             <button class="credit-btn INVEST" onclick="selCredit('c','INVEST',this)">INVEST</button>
             <button class="credit-btn MICRO" onclick="selCredit('c','MICRO',this)">MICRO</button>
+            <button class="credit-btn CAUSE" onclick="selCredit('c','Causé',this)">Causé</button>
+            <button class="credit-btn EPS" onclick="selCredit('c','EPS',this)">EPS</button>
+            <button class="credit-btn CONSO" onclick="selCredit('c','Conso',this)">Conso</button>
+            <button class="credit-btn AGRI" onclick="selCredit('c','Agri',this)">Agri</button>
           </div><input type="hidden" id="c_type">
         </div>
         <div class="form-group full"><label>Type de comité</label>
@@ -338,6 +355,10 @@ tr:hover td{background:var(--navy-light);}
             <button class="credit-btn BFR" onclick="selCredit('r','BFR',this)">BFR</button>
             <button class="credit-btn INVEST" onclick="selCredit('r','INVEST',this)">INVEST</button>
             <button class="credit-btn MICRO" onclick="selCredit('r','MICRO',this)">MICRO</button>
+            <button class="credit-btn CAUSE" onclick="selCredit('r','Causé',this)">Causé</button>
+            <button class="credit-btn EPS" onclick="selCredit('r','EPS',this)">EPS</button>
+            <button class="credit-btn CONSO" onclick="selCredit('r','Conso',this)">Conso</button>
+            <button class="credit-btn AGRI" onclick="selCredit('r','Agri',this)">Agri</button>
           </div><input type="hidden" id="r_type">
         </div>
         <div class="form-group full"><label>Observations</label><textarea id="r_obs"></textarea></div>
@@ -362,6 +383,10 @@ tr:hover td{background:var(--navy-light);}
             <button class="credit-btn BFR" onclick="selCredit('e','BFR',this)">BFR</button>
             <button class="credit-btn INVEST" onclick="selCredit('e','INVEST',this)">INVEST</button>
             <button class="credit-btn MICRO" onclick="selCredit('e','MICRO',this)">MICRO</button>
+            <button class="credit-btn CAUSE" onclick="selCredit('e','Causé',this)">Causé</button>
+            <button class="credit-btn EPS" onclick="selCredit('e','EPS',this)">EPS</button>
+            <button class="credit-btn CONSO" onclick="selCredit('e','Conso',this)">Conso</button>
+            <button class="credit-btn AGRI" onclick="selCredit('e','Agri',this)">Agri</button>
           </div><input type="hidden" id="e_type">
         </div>
         <div class="form-group full"><label>Observations</label><textarea id="e_obs"></textarea></div>
@@ -386,6 +411,10 @@ tr:hover td{background:var(--navy-light);}
             <button class="credit-btn BFR" onclick="selCredit('v','BFR',this)">BFR</button>
             <button class="credit-btn INVEST" onclick="selCredit('v','INVEST',this)">INVEST</button>
             <button class="credit-btn MICRO" onclick="selCredit('v','MICRO',this)">MICRO</button>
+            <button class="credit-btn CAUSE" onclick="selCredit('v','Causé',this)">Causé</button>
+            <button class="credit-btn EPS" onclick="selCredit('v','EPS',this)">EPS</button>
+            <button class="credit-btn CONSO" onclick="selCredit('v','Conso',this)">Conso</button>
+            <button class="credit-btn AGRI" onclick="selCredit('v','Agri',this)">Agri</button>
           </div><input type="hidden" id="v_type">
         </div>
         <div class="form-group full"><label>Comité valideur</label>
@@ -417,6 +446,10 @@ tr:hover td{background:var(--navy-light);}
             <button class="credit-btn BFR" onclick="selCredit('p','BFR',this)">BFR</button>
             <button class="credit-btn INVEST" onclick="selCredit('p','INVEST',this)">INVEST</button>
             <button class="credit-btn MICRO" onclick="selCredit('p','MICRO',this)">MICRO</button>
+            <button class="credit-btn CAUSE" onclick="selCredit('p','Causé',this)">Causé</button>
+            <button class="credit-btn EPS" onclick="selCredit('p','EPS',this)">EPS</button>
+            <button class="credit-btn CONSO" onclick="selCredit('p','Conso',this)">Conso</button>
+            <button class="credit-btn AGRI" onclick="selCredit('p','Agri',this)">Agri</button>
           </div><input type="hidden" id="p_type">
         </div>
         <div class="form-group full"><label>Stade de maturité</label>
@@ -450,6 +483,10 @@ tr:hover td{background:var(--navy-light);}
             <button class="credit-btn BFR" onclick="selCredit('m','BFR',this)">BFR</button>
             <button class="credit-btn INVEST" onclick="selCredit('m','INVEST',this)">INVEST</button>
             <button class="credit-btn MICRO" onclick="selCredit('m','MICRO',this)">MICRO</button>
+            <button class="credit-btn CAUSE" onclick="selCredit('m','Causé',this)">Causé</button>
+            <button class="credit-btn EPS" onclick="selCredit('m','EPS',this)">EPS</button>
+            <button class="credit-btn CONSO" onclick="selCredit('m','Conso',this)">Conso</button>
+            <button class="credit-btn AGRI" onclick="selCredit('m','Agri',this)">Agri</button>
           </div><input type="hidden" id="m_type">
         </div>
         <div class="form-group full"><label>Référence Amplitude</label><input type="text" id="m_ref"></div>
@@ -475,6 +512,10 @@ tr:hover td{background:var(--navy-light);}
             <button class="credit-btn BFR" onclick="selCredit('g','BFR',this)">BFR</button>
             <button class="credit-btn INVEST" onclick="selCredit('g','INVEST',this)">INVEST</button>
             <button class="credit-btn MICRO" onclick="selCredit('g','MICRO',this)">MICRO</button>
+            <button class="credit-btn CAUSE" onclick="selCredit('g','Causé',this)">Causé</button>
+            <button class="credit-btn EPS" onclick="selCredit('g','EPS',this)">EPS</button>
+            <button class="credit-btn CONSO" onclick="selCredit('g','Conso',this)">Conso</button>
+            <button class="credit-btn AGRI" onclick="selCredit('g','Agri',this)">Agri</button>
           </div><input type="hidden" id="g_type">
         </div>
         <div class="form-group full"><label class="required">Nature de la régularisation</label><textarea id="g_obs"></textarea></div>
@@ -564,6 +605,35 @@ tr:hover td{background:var(--navy-light);}
   </div>
   <div class="synth-grid" id="synthGrid"></div>
   <div id="synthDetail"></div>
+</div>
+
+<!-- ANALYSE DG/DEX -->
+<div class="view" id="view-analyse">
+  <div class="section-header"><div class="section-title">🔬 Analyse &amp; Performance</div><div class="section-desc">Indicateurs clés pour le DG et le DEX</div></div>
+  <div class="filter-bar">
+    <select id="ana_sem" onchange="renderAnalyse()"><option value="">Toutes semaines</option></select>
+    <select id="ana_mois" onchange="renderAnalyse()"><option value="">Tous les mois</option></select>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-label">Dossiers déposés</div><div class="kpi-value" id="ana_dep">—</div><div class="kpi-sub">total</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Dossiers MEP</div><div class="kpi-value" id="ana_mep">—</div><div class="kpi-sub">mis en place</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Taux transformation</div><div class="kpi-value" id="ana_taux">—</div><div class="kpi-sub">dépôt → MEP</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Dossiers bloqués</div><div class="kpi-value" id="ana_bloq">—</div><div class="kpi-sub">&gt; 14 jours</div></div>
+  </div>
+  <div style="margin-bottom:20px">
+    <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:12px">&#9203; Dossiers en attente — Ancienneté</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Module</th><th>CAF</th><th>Client</th><th>Type</th><th>Montant</th><th>Date entrée</th><th>Jours</th><th>Statut</th></tr></thead>
+      <tbody id="ana_blocage"></tbody>
+    </table></div>
+  </div>
+  <div>
+    <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:12px">&#128200; Taux de transformation par CAF</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>CAF</th><th>Déposés</th><th>En analyse</th><th>Validés</th><th>MEP</th><th>Taux transfo</th><th>Performance</th></tr></thead>
+      <tbody id="ana_transfo"></tbody>
+    </table></div>
+  </div>
 </div>
 
 <!-- ADMIN UTILISATEURS -->
@@ -927,6 +997,7 @@ function showTab(name,el){
   document.getElementById("moduleBar").style.display=name==="saisie"?"flex":"none";
   if(name==="dashboard") renderDashboard();
   if(name==="synthese") renderSynthese();
+  if(name==="analyse") renderAnalyse();
   if(name==="suivi") { populateSuiviSem(); }
   if(name==="mensuel") { populateMoisSel(); }
   if(name==="admin") { loadUsers(); }
@@ -957,7 +1028,8 @@ async function saveRecord(mod){
   const g=id=>{const e=document.getElementById(pfx+"_"+id);return e?e.value.trim():"";};
   const caf=g("caf"),date=g("date"),code=g("code"),nom=g("nom");
   const montant=parseFloat(g("montant")||0),type=g("type");
-  if(!caf||!date||!code||!nom||!montant||!type){toast("Champs obligatoires manquants","error");return;}
+  const codeRequired = mod !== "comite";
+  if(!caf||!date||(!code&&codeRequired)||!nom||!montant||!type){toast("Champs obligatoires manquants","error");return;}
 
   const btn=document.getElementById("btn_"+mod);
   btn.disabled=true;
@@ -1198,6 +1270,73 @@ function exportCSV(){const mod=document.getElementById("dash_mod").value;const s
 function exportSuivi(){const sem=document.getElementById("suivi_sem").value;if(!sem){toast("Sélectionnez une semaine","error");return;}const rows=document.querySelectorAll("#suiviTable tr");const csv=["CAF;Prévus;Vol.Prévu;Déposés;Vol.Déposé;Écart Nbre;Écart Volume;Statut"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim());if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Suivi_"+sem.replace(" ","_")+".csv");toast("Export téléchargé");}
 function exportMensuel(){const mois=document.getElementById("mens_mois").value;if(!mois){toast("Sélectionnez un mois","error");return;}const rows=document.querySelectorAll("#mensuelTable tr");const csv=["CAF;Nb;Volume;BFR;INVEST;MICRO;Ticket moyen;% volume"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim().replace(/\s+/g," "));if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Mensuel_"+mois+".csv");toast("Export téléchargé");}
 function exportAll(){const sem=document.getElementById("syn_sem").value;let content="";for(const[mod,M]of Object.entries(MODS)){const rows=allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem));if(rows.length)content+="\n\n=== "+M.l.toUpperCase()+" ===\n"+toCSV(rows);}if(!content){toast("Aucune donnée","error");return;}dl(content,"CMF_Synthese_"+(sem||"complet")+".csv");toast("Export complet téléchargé");}
+
+// ====== ANALYSE ======
+async function renderAnalyse(){
+  try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
+  const sem=document.getElementById("ana_sem").value;
+  const mois=document.getElementById("ana_mois").value;
+
+  const sems=[...new Set(allData.map(r=>r.semaine).filter(Boolean))].sort().reverse();
+  const semSel=document.getElementById("ana_sem");const curS=semSel.value;
+  semSel.innerHTML='<option value="">Toutes semaines</option>'+sems.map(s=>`<option${s===curS?" selected":""}>${s}</option>`).join("");
+
+  const moisList=[...new Set(allData.filter(r=>r.date).map(r=>r.date.split("T")[0].substring(0,7)))].sort().reverse();
+  const moisSel=document.getElementById("ana_mois");const curM=moisSel.value;
+  moisSel.innerHTML='<option value="">Tous les mois</option>'+moisList.map(m=>{
+    const[y,mo]=m.split("-");
+    const label=new Date(y,mo-1,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+    return `<option value="${m}"${m===curM?" selected":""}>${label}</option>`;
+  }).join("");
+
+  const flt=mod=>allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem)&&(!mois||(r.date&&r.date.startsWith(mois))));
+  const deposes=flt("deposes"),meps=flt("mep"),risque=flt("risque"),exploit=flt("exploit"),vmep=flt("vmep"),regul=flt("regul");
+  const today=new Date();
+  const taux=deposes.length?Math.round((meps.length/deposes.length)*100):0;
+
+  const bloques=[...risque,...exploit,...vmep,...regul].map(r=>{
+    const j=Math.floor((today-new Date(r.date||r.created_at))/(1000*60*60*24));
+    return{...r,jours:j};
+  }).sort((a,b)=>b.jours-a.jours);
+
+  document.getElementById("ana_dep").textContent=deposes.length;
+  document.getElementById("ana_mep").textContent=meps.length;
+  document.getElementById("ana_taux").textContent=taux+"%";
+  document.getElementById("ana_taux").style.color=taux>=50?"#16a34a":taux>=30?"#f59e0b":"#CC0000";
+  document.getElementById("ana_bloq").textContent=bloques.filter(r=>r.jours>14).length;
+
+  const MLBL={risque:"Risque",exploit:"Exploitation",vmep:"Validé VMEP",regul:"Régularisation"};
+  if(!bloques.length){
+    document.getElementById("ana_blocage").innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">&#10003;</div><div class="empty-text">Aucun dossier en attente</div></div></td></tr>';
+  } else {
+    document.getElementById("ana_blocage").innerHTML=bloques.map(r=>{
+      const c=r.jours>14?"#CC0000":r.jours>7?"#f59e0b":"#16a34a";
+      const bg=r.jours>14?"#fef2f2":r.jours>7?"#fffbeb":"#f0fdf4";
+      const s=r.jours>14?"Critique":r.jours>7?"A surveiller":"Normal";
+      return `<tr style="background:${bg}"><td style="font-size:11px;font-weight:600">${MLBL[r.mod]||r.mod}</td><td style="font-size:11px">${r.caf||"?"}</td><td><strong>${r.nom||"?"}</strong><br><span style="font-size:10px;color:var(--muted)">${r.code||""}</span></td><td><span class="badge badge-${r.type}">${r.type||"?"}</span></td><td class="amount">${fmtM(r.montant)}</td><td>${fmtD(r.date)}</td><td style="font-weight:700;color:${c};font-size:15px">${r.jours}j</td><td style="font-weight:600;color:${c}">${s}</td></tr>`;
+    }).join("");
+  }
+
+  const CAFS=["OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou","KONÉ Mohamed","BAMBA Bassirou","CISSÉ David","COULIBALY Marie-Edwige","GOLI Cédric","KPADJIRO Michel","KANGA Jodel","YAO Armel","KOUADIO Marie Ange","KAMAGATE Ali","COMPAO RÉ Aïda","SORO Felicité","DJÈ Jean Charles","DRAMAN Jean Michel","YOUL Sansan","NIKIEMA Bénédicte","KOUACOU Claire","TIA Natacha","KAMATÉ Tahibatou"];
+  const transfos=CAFS.map(caf=>{
+    const d=deposes.filter(r=>r.caf===caf).length;
+    const a=risque.filter(r=>r.caf===caf).length+exploit.filter(r=>r.caf===caf).length;
+    const v=vmep.filter(r=>r.caf===caf).length;
+    const m=meps.filter(r=>r.caf===caf).length;
+    const t=d?Math.round((m/d)*100):0;
+    return{caf,d,a,v,m,t};
+  }).filter(r=>r.d>0||r.m>0).sort((a,b)=>b.t-a.t);
+
+  if(!transfos.length){
+    document.getElementById("ana_transfo").innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">&#128200;</div><div class="empty-text">Aucune donnée</div></div></td></tr>';
+  } else {
+    document.getElementById("ana_transfo").innerHTML=transfos.map(r=>{
+      const c=r.t>=50?"#16a34a":r.t>=30?"#f59e0b":"#CC0000";
+      const p=r.t>=50?"Bon":r.t>=30?"Moyen":"Faible";
+      return `<tr><td style="font-weight:600;font-size:12px">${r.caf}</td><td style="text-align:center;font-weight:700">${r.d}</td><td style="text-align:center">${r.a}</td><td style="text-align:center">${r.v}</td><td style="text-align:center;font-weight:700;color:var(--success)">${r.m}</td><td style="text-align:center"><span style="font-weight:700;color:${c};font-size:14px">${r.t}%</span><div style="background:var(--border);border-radius:4px;height:5px;margin-top:4px"><div style="width:${r.t}%;background:${c};border-radius:4px;height:5px"></div></div></td><td style="font-weight:600;color:${c}">${p}</td></tr>`;
+    }).join("");
+  }
+}
 
 // ====== INIT ======
 async function init(){
