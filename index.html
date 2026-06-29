@@ -1701,20 +1701,20 @@ async function renderObjectifs() {
     <td style="font-weight:600;font-size:12px">${r.caf}</td>
     <td style="text-align:center">${r.obj_nb}</td>
     <td style="text-align:center;font-weight:700">${r.real_nb}</td>
-    ${tauxtCell(r.pct_nb)}
+    ${barCell(r.pct_nb)}
     <td style="text-align:right">${fmtM(r.obj_vol)}</td>
     <td style="text-align:right;font-weight:700">${fmtM(r.real_vol)}</td>
-    ${tauxtCell(r.pct_vol)}
+    ${barCell(r.pct_vol)}
     <td>${statutCell(r.pct_nb, r.pct_vol)}</td>
     <td></td>
   </tr>`).join("") + (currentRole==="manager" ? `<tr style="background:var(--navy-light);font-weight:700">
     <td>TOTAL</td>
     <td style="text-align:center">${totObjNb}</td>
     <td style="text-align:center">${totRealNb}</td>
-    ${tauxtCell(totPctNb)}
+    ${barCell(totPctNb)}
     <td style="text-align:right">${fmtM(totObjVol)}</td>
     <td style="text-align:right">${fmtM(totRealVol)}</td>
-    ${tauxtCell(totPctVol)}
+    ${barCell(totPctVol)}
     <td>${statutCell(totPctNb,totPctVol)}</td>
     <td></td>
   </tr>` : "");
