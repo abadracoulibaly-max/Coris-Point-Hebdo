@@ -427,6 +427,37 @@ const PFX = {deposes:"d",comite:"c",risque:"r",exploit:"e",vmep:"v",pipeline:"p"
 let allData = [];
 
 // ====== SUPABASE API ======
+
+async function sbDelete(id) {
+  const r = await fetch(`${SB_URL}/rest/v1/dossiers?id=eq.${id}`, {
+    method:"DELETE",
+    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal"}
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return true;
+}
+
+async function deleteRecord(id, nom) {
+  if(!confirm(`Supprimer le dossier de "${nom}" ?\nCette action est irréversible.`)) return;
+  try {
+    await sbDelete(id);
+    allData = allData.filter(r=>r.id!==id);
+    // Refresh vue courante
+    const mod = allData.find ? document.querySelector(".mod-chip.active") : null;
+    const activeMod = document.querySelector(".mod-chip.active");
+    if(activeMod) {
+      const modName = activeMod.getAttribute("onclick").match(/'([^']+)'/)[1];
+      renderRecent(modName);
+    }
+    // Si dashboard ouvert, refresh
+    if(document.getElementById("view-dashboard").classList.contains("active")) renderDashboard();
+    if(document.getElementById("view-synthese").classList.contains("active")) renderSynthese();
+    toast("🗑️ Dossier supprimé — "+nom);
+  } catch(e){
+    toast("❌ Erreur suppression : "+e.message,"error");
+  }
+}
+
 async function sbGet(params="") {
   const r = await fetch(`${SB_URL}/rest/v1/dossiers?select=*${params}&order=created_at.desc&limit=1000`, {
     headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}
@@ -540,7 +571,7 @@ function renderRecent(mod){
   const rows=allData.filter(r=>r.mod===mod).slice(0,5);
   if(!rows.length){c.innerHTML=`<div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun enregistrement</div></div>`;return;}
   c.innerHTML=`<div class="table-wrap"><table>
-    <thead><tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Client</th><th>Type</th><th>Montant</th></tr></thead>
+    <thead><tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Client</th><th>Type</th><th>Montant</th><th></th></tr></thead>
     <tbody>${rows.map(r=>`<tr>
       <td><span style="font-size:10px;font-weight:700;color:var(--navy)">${r.semaine}</span></td>
       <td>${fmtD(r.date)}</td>
@@ -548,6 +579,7 @@ function renderRecent(mod){
       <td><strong>${r.nom}</strong><br><span style="color:var(--muted);font-size:10px">${r.code}</span></td>
       <td><span class="badge badge-${r.type}">${r.type}</span></td>
       <td class="amount">${fmtM(r.montant)}</td>
+      <td><button onclick="deleteRecord(${r.id},'${r.nom}')" style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">🗑️</button></td>
     </tr>`).join("")}</tbody>
   </table></div>`;
 }
@@ -582,6 +614,7 @@ async function renderDashboard(){
     document.getElementById("dashBody").innerHTML=`<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">Aucune donnée</div></div></td></tr>`;
     return;
   }
+  document.getElementById("dashHead").innerHTML=`<tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th><th>Obs.</th><th></th></tr>`;
   document.getElementById("dashBody").innerHTML=rows.map(r=>`<tr>
     <td><span style="font-size:10px;font-weight:700;color:var(--navy)">${r.semaine||"—"}</span></td>
     <td>${fmtD(r.date)}</td><td style="font-size:11px">${r.caf||"—"}</td>
@@ -591,6 +624,7 @@ async function renderDashboard(){
     <td class="amount">${fmt(r.montant)}</td>
     <td>${r.duree?r.duree+" mois":"—"}</td>
     <td style="font-size:11px;color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.obs||"—"}</td>
+    <td><button onclick="deleteRecord(${r.id},'${r.nom}')" style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">🗑️</button></td>
   </tr>`).join("");
 }
 
@@ -637,6 +671,7 @@ function showDetail(mod,sem){
           <td><span class="badge badge-${r.type}">${r.type||"—"}</span></td>
           <td class="amount">${fmt(r.montant)}</td>
           <td>${r.duree?r.duree+" mois":"—"}</td>
+          <td><button onclick="deleteRecord(${r.id},'${r.nom}')" style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">🗑️</button></td>
         </tr>`).join("")}</tbody>
       </table></div>
     </div>`;
