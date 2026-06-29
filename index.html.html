@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coris Mésofinance CI — Reporting Commercial</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  :root {
+    --navy:#1A3A7A; --blue:#1A5CA8; --red:#CC0000; --gold:#C8A84B;
+    --navy-light:#e8eef7; --bg:#F5F7FA; --white:#fff;
+    --text:#1a2535; --muted:#6b7a99; --border:#dde3ef; --success:#16a34a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+  header{background:var(--navy);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:62px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(26,58,122,.2);}
+  .header-logo{display:flex;align-items:center;gap:12px;}
+  .logo-img{height:40px;width:auto;object-fit:contain;filter:brightness(0) invert(1);}
+  .logo-fallback{width:38px;height:38px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--navy);}
+  .header-info{display:flex;flex-direction:column;}
+  .header-title{color:#fff;font-size:14px;font-weight:600;}
+  .header-sub{color:rgba(255,255,255,.5);font-size:11px;}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:6px;animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+  .header-status{color:rgba(255,255,255,.7);font-size:11px;display:flex;align-items:center;}
+  .header-week{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:5px 13px;color:#fff;font-size:12px;font-weight:500;}
+  .nav-tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;padding:0 20px;overflow-x:auto;}
+  .nav-tab{padding:13px 16px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border:none;border-bottom:2px solid transparent;white-space:nowrap;background:none;font-family:'Inter',sans-serif;transition:all .15s;}
+  .nav-tab:hover{color:var(--blue);}
+  .nav-tab.active{color:var(--navy);border-bottom-color:var(--gold);font-weight:600;}
+  .module-bar{background:var(--white);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;gap:8px;overflow-x:auto;}
+  .mod-chip{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);white-space:nowrap;font-family:'Inter',sans-serif;transition:all .15s;}
+  .mod-chip.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .mod-chip:hover{border-color:var(--blue);color:var(--blue);}
+  .main{max-width:960px;margin:0 auto;padding:24px 18px 70px;}
+  .view{display:none;} .view.active{display:block;}
+  .section-header{margin-bottom:20px;}
+  .section-title{font-size:19px;font-weight:700;color:var(--navy);margin-bottom:3px;}
+  .section-desc{font-size:13px;color:var(--muted);}
+  .card{background:var(--white);border-radius:12px;border:1px solid var(--border);padding:24px;margin-bottom:18px;}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .form-group{display:flex;flex-direction:column;gap:5px;}
+  .form-group.full{grid-column:1/-1;}
+  label{font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;}
+  .required::after{content:' *';color:var(--red);}
+  input,select,textarea{padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg);transition:border-color .15s;width:100%;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,92,168,.1);background:#fff;}
+  select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a99' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:34px;}
+  textarea{resize:vertical;min-height:70px;}
+  .credit-type-group,.stade-group{display:flex;gap:8px;flex-wrap:wrap;}
+  .credit-btn,.stade-btn{padding:9px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:var(--bg);color:var(--muted);font-family:'Inter',sans-serif;transition:all .15s;}
+  .credit-btn{flex:1;}
+  .credit-btn:hover,.stade-btn:hover{border-color:var(--blue);color:var(--blue);}
+  .credit-btn.selected.BFR{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .credit-btn.selected.INVEST{background:var(--success);border-color:var(--success);color:#fff;}
+  .credit-btn.selected.MICRO{background:var(--gold);border-color:var(--gold);color:var(--navy);}
+  .stade-btn.selected{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .btn-primary{background:var(--navy);color:#fff;border:none;padding:13px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .btn-primary:hover{background:var(--blue);}
+  .btn-primary:disabled{background:var(--muted);cursor:not-allowed;}
+  .btn-export{background:var(--gold);color:var(--navy);border:none;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .kpi-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px;border-top:3px solid var(--navy);}
+  .kpi-card.blue{border-top-color:var(--blue);}
+  .kpi-card.gold{border-top-color:var(--gold);}
+  .kpi-card.red{border-top-color:var(--red);}
+  .kpi-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+  .kpi-value{font-size:22px;font-weight:700;color:var(--navy);}
+  .kpi-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+  .filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+  .filter-bar select,.filter-bar input{width:auto;flex:1;min-width:140px;font-size:12px;padding:8px 12px;}
+  .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  thead{background:var(--navy);color:#fff;}
+  th{padding:10px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+  td{padding:10px 12px;border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:var(--navy-light);}
+  .amount{font-weight:600;color:var(--navy);}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;}
+  .badge-BFR{background:#dbeafe;color:#1e40af;}
+  .badge-INVEST{background:#f0fdf4;color:#15803d;}
+  .badge-MICRO{background:#fef9ee;color:#92400e;}
+  .synth-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .synth-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:all .15s;}
+  .synth-card:hover{border-color:var(--blue);box-shadow:0 2px 12px rgba(26,92,168,.1);}
+  .synth-card-icon{font-size:22px;margin-bottom:6px;}
+  .synth-card-title{font-size:12px;font-weight:600;color:var(--navy);margin-bottom:4px;}
+  .synth-card-count{font-size:20px;font-weight:700;color:var(--blue);}
+  .synth-card-vol{font-size:11px;color:var(--muted);}
+  .empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
+  .empty-icon{font-size:34px;margin-bottom:10px;}
+  .empty-text{font-size:14px;font-weight:500;color:var(--text);margin-bottom:5px;}
+  .empty-sub{font-size:12px;}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(100px);padding:12px 22px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.2);transition:transform .3s;z-index:999;white-space:nowrap;color:#fff;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast.success{background:var(--success);}
+  .toast.error{background:var(--red);}
+  .toast.info{background:var(--navy);}
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;z-index:200;display:none;}
+  .loading-box{background:#fff;border-radius:12px;padding:24px 32px;box-shadow:0 8px 32px rgba(0,0,0,.12);text-align:center;}
+  .loading-spinner{width:32px;height:32px;border:3px solid var(--navy-light);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;}
+  @media(max-width:600px){.form-grid{grid-template-columns:1fr;}.kpi-row{grid-template-columns:1fr 1fr;}.synth-grid{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="loading-spinner"></div>
+    <div style="font-size:13px;color:var(--navy);font-weight:500">Chargement des données...</div>
+  </div>
+</div>
+
+<header>
+  <div class="header-logo">
+    <img class="logo-img" src="https://corismeso.finance/wp-content/uploads/2020/05/cropped-cropped-favicon3-270x270.png"
+      alt="CMF" onerror="this.style.display='none';document.getElementById('lf').style.display='flex'">
+    <div class="logo-fallback" id="lf" style="display:none">CM</div>
+    <div class="header-info">
+      <div class="header-title">Coris Mésofinance Côte d'Ivoire</div>
+      <div class="header-sub">Suivi Commercial — Direction Commerciale</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="header-status"><span class="status-dot" id="statusDot"></span><span id="statusText">Connexion...</span></div>
+    <div class="header-week" id="headerWeek">—</div>
+  </div>
+</header>
+
+<div class="nav-tabs">
+  <button class="nav-tab active" onclick="showTab('saisie',this)">📝 Saisie</button>
+  <button class="nav-tab" onclick="showTab('dashboard',this)">📊 Dashboard</button>
+  <button class="nav-tab" onclick="showTab('synthese',this)">🗂 Synthèse</button>
+</div>
+
+<div class="module-bar" id="moduleBar">
+  <button class="mod-chip active" onclick="showModule('deposes',this)">📥 Déposés</button>
+  <button class="mod-chip" onclick="showModule('comite',this)">📋 Prévisions Comité</button>
+  <button class="mod-chip" onclick="showModule('risque',this)">🔍 Analyse Risque</button>
+  <button class="mod-chip" onclick="showModule('exploit',this)">⚙️ Analyse Exploitation</button>
+  <button class="mod-chip" onclick="showModule('vmep',this)">✅ Validés Non MEP</button>
+  <button class="mod-chip" onclick="showModule('pipeline',this)">🔄 Pipeline</button>
+  <button class="mod-chip" onclick="showModule('mep',this)">💰 MEP du Mois</button>
+  <button class="mod-chip" onclick="showModule('regul',this)">⏳ Régularisation</button>
+</div>
+
+<div class="main">
+
+<!-- SAISIE -->
+<div class="view active" id="view-saisie">
+  <div id="form-deposes">
+    <div class="section-header"><div class="section-title">📥 Dossiers Déposés</div><div class="section-desc">Dossiers déposés durant la semaine</div></div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="d_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
+        <div class="form-group"><label class="required">Date de dépôt</label><input type="date" id="d_date"></div>
+        <div class="form-group"><label class="required">Code client</label><input type="text" id="d_code" placeholder="ex: CI-00123"></div>
+        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="d_nom"></div>
+        <div class="form-group"><label class="required">Montant (FCFA)</label><input type="number" id="d_montant" min="0"></div>
+        <div class="form-group"><label class="required">Durée (mois)</label><input type="number" id="d_duree" min="1" max="120"></div>
+        <div class="form-group full"><label class="required">Type de crédit</label>
+          <div class="credit-type-group">
+            <button class="credit-btn BFR" onclick="selCredit('d','BFR',this)">BFR</button>
+            <button class="credit-btn INVEST" onclick="selCredit('d','INVEST',this)">INVEST</button>
+            <button class="credit-btn MICRO" onclick="selCredit('d','MICRO',this)">MICRO</button>
+          </div><input type="hidden" id="d_type">
+        </div>
+        <div class="form-group full"><label>Activité / Secteur</label><input type="text" id="d_secteur" placeholder="Commerce, BTP, Agriculture..."></div>
+        <div class="form-group full"><label>Observations</label><textarea id="d_obs"></textarea></div>
+      </div>
+      <button class="btn-primary" id="btn_deposes" onclick="saveRecord('deposes')">✅ Enregistrer le dossier</button>
+    </div>
+    <div id="recent-deposes"></div>
+  </div>
+
+  <div id="form-comite" style="display:none">
+    <div class="section-header"><div class="section-title">📋 Prévisions Comité</div><div class="section-desc">Dossiers prévus en comité cette semaine</div></div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="c_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
+        <div class="form-group"><label class="required">Date comité prévue</label><input type="date" id="c_date"></div>
+        <div class="form-group"><label class="required">Code client</label><input type="text" id="c_code" placeholder="ex: CI-00123"></div>
+        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="c_nom"></div>
+        <div class="form-group"><label class="required">Montant (FCFA)</label><input type="number" id="c_montant" min="0"></div>
+        <div class="form-group"><label class="required">Durée (mois)</label><input type="number" id="c_duree" min="1"></div>
+        <div class="form-group full"><label class="required">Type de crédit</label>
+          <div class="credit-type-group">
+            <button class="credit-btn BFR" onclick="selCredit('c','BFR',this)">BFR</button>
+            <button class="credit-btn INVEST" onclick="selCredit('c','INVEST',this)">INVEST</button>
+            <button class="credit-btn MICRO" onclick="selCredit('c','MICRO',this)">MICRO</button>
+          </div><input type="hidden" id="c_type">
+        </div>
+        <div class="form-group full"><label>Type de comité</label>
+          <div class="stade-group">
+            <button class="stade-btn" onclick="selStade('c_comtype','DEX',this)">DEX</button>
+            <button class="stade-btn" onclick="selStade('c_comtype','CIC',this)">CIC</button>
+            <button class="stade-btn" onclick="selStade('c_comtype','CSC',this)">CSC</button>
+          </div><input type="hidden" id="c_comtype">
+        </div>
+        <div class="form-group full"><label>Observations</label><textarea id="c_obs"></textarea></div>
+      </div>
+      <button class="btn-primary" id="btn_comite" onclick="saveRecord('comite')">✅ Enregistrer la prévision</button>
+    </div>
+    <div id="recent-comite"></div>
+  </div>
+
+  <div id="form-risque" style="display:none">
+    <div class="section-header"><div class="section-title">🔍 Analyse Risque</div><div class="section-desc">Dossiers en cours d'analyse à la Direction des Risques</div></div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="r_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
+        <div class="form-group"><label class="required">Date transmission</label><input type="date" id="r_date"></div>
+        <div class="form-group"><label class="required">Code client</label><input type="text" id="r_code" placeholder="ex: CI-00123"></div>
+        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="r_nom"></div>
+        <div class="form-group"><label class="required">Montant (FCFA)</label><input type="number" id="r_montant" min="0"></div>
+        <div class="form-group"><label class="required">Durée (mois)</label><input type="number" id="r_duree" min="1"></div>
+        <div class="form-group full"><label class="required">Type de crédit</label>
+          <div class="credit-type-group">
+            <button class="credit-btn BFR" onclick="selCredit('r','BFR',this)">BFR</button>
+            <button class="credit-btn INVEST" onclick="selCredit('r','INVEST',this)">INVEST</button>
+            <button class="credit-btn MICRO" onclick="selCredit('r','MICRO',this)">MICRO</button>
+          </div><input type="hidden" id="r_type">
+        </div>
+        <div class="form-group full"><label>Points bloquants / Observations</label><textarea id="r_obs"></textarea></div>
+      </div>
+      <button class="btn-primary" id="btn_risque" onclick="saveRecord('risque')">✅ Enregistrer</button>
+    </div>
+    <div id="recent-risque"></div>
+  </div>
+
+  <div id="form-exploit" style="display:none">
+    <div class="section-header"><div class="section-title">⚙️ Analyse Exploitation</div><div class="section-desc">Dossiers en cours d'analyse à la Direction de l'Exploitation</div></div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="e_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
+        <div class="form-group"><label class="required">Date transmission</label><input type="date" id="e_date"></div>
+        <div class="form-group"><label class="required">Code client</label><input type="text" id="e_code" placeholder="ex: CI-00123"></div>
+        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="e_nom"></div>
+        <div class="form-group"><label class="required">Montant (FCFA)</label><input type="number" id="e_montant" min="0"></div>
+        <div class="form-group"><label class="required">Durée (mois)</label><input type="number" id="e_duree" min="1"></div>
+        <div class="form-group full"><label class="required">Type de crédit</label>
+          <div class="credit-type-group">
+            <button class="credit-btn BFR" onclick="selCredit('e','BFR',this)">BFR</button>
+            <button class="credit-btn INVEST" onclick="selCredit('e','INVEST',this)">INVEST</button>
+            <button class="credit-btn MICRO" onclick="selCredit('e','MICRO',this)">MICRO</button>
+          </div><input type="hidden" id="e_type">
+        </div>
+        <div class="form-group full"><label>Observations</label><textarea id="e_obs"></textarea></div>
+      </div>
+      <button class="btn-primary" id="btn_exploit" onclick="saveRecord('exploit')">✅ Enregistrer</button>
+    </div>
+    <div id="recent-exploit"></div>
+  </div>
+
+  <div id="form-vmep" style="display:none">
+    <div class="section-header"><div class="section-title">✅ Validés Non MEP</div><div class="section-desc">Dossiers validés en attente de mise en place</div></div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="v_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
+        <div class="form-group"><label class="required">Date validation</label><input type="date" id="v_date"></div>
+        <div class="form-group"><label class="required">Code client</label><input type="text" id="v_code" placeholder="ex: CI-00123"></div>
+        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="v_nom"></div>
+        <div class="form-group"><label class="required">Montant validé (FCFA)</label><input type="number" id="v_montant" min="0"></div>
+        <div class="form-group"><label class="required">Durée (mois)</label><input type="number" id="v_duree" min="1"></div>
+        <div class="form-group full"><label class="required">Type de crédit</label>
+          <div class="credit-type-group">
+            <button class="credit-btn BFR" onclick="selCredit('v','BFR',this)">BFR</button>
+            <button class="credit-btn INVEST" onclick="selCredit('v','INVEST',this)">INVEST</button>
+            <button class="credit-btn MICRO" onclick="selCredit('v','MICRO',this)">MICRO</button>
+          </div><input type="hidden" id="v_type">
+        </div>
+        <div class="form-group full"><label>Comité valideur</label>
+          <div class="stade-group">
+            <button class="stade-btn" onclick="selStade('v_comtype','DEX',this)">DEX</button>
+            <button class="stade-btn" onclick="selStade('v_comtype','CIC',this)">CIC</button>
+            <button class="stade-btn" onclick="selStade('v_comtype','CSC',this)">CSC</button>
+          </div><input type="hidden" id="v_comtype">
+        </div>
+        <div class="form-group full"><label>Motif attente MEP</label><textarea id="v_obs" placeholder="Garanties manquantes, domiciliation en cours..."></textarea></div>
+      </div>
+      <button class="btn-primary" id="btn_vmep" onclick="saveRecord('vmep')">✅ Enregistrer</button>
+    </div>
+    <div id="recent-vmep"></div>
+  </div>
+
+  <div id="form-pipeline" style="display:none">
+    <div class="section-header"><div class="section-title">🔄 Pipeline Commercial</div><div class="section-desc">Prospects et dossiers en cours de montage</div></div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="p_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
+        <div class="form-group"><label class="required">Date prévisionnelle dépôt</label><input type="date" id="p_date"></div>
+        <div class="form-group"><label class="required">Code client</label><input type="text" id="p_code" placeholder="CI-00123 ou PROSPECT"></div>
+        <div class="form-group"><label class="required">Nom du prospect / client</label><input type="text" id="p_nom"></div>
+        <div class="form-group"><label class="required">Montant estimé (FCFA)</label><input type="number" id="p_montant" min="0"></div>
+        <div class="form-group"><label>Durée estimée (mois)</label><input type="number" id="p_duree" min="1"></div>
+        <div class="form-group full"><label class="required">Type de crédit</label>
+          <div class="credit-type-group">
+            <button class="credit-btn BFR" onclick="selCredit('p','BFR',this)">BFR</button>
+            <button class="credit-btn INVEST" onclick="selCredit('p','INVEST',this)">INVEST</button>
+            <button class="credit-btn MICRO" onclick="selCredit('p','MICRO',this)">MICRO</button>
+          </div><input type="hidden" id="p_type">
+        </div>
+        <div class="form-group full"><label>Stade de maturité</label>
+          <div class="stade-group">
+            <button class="stade-btn" onclick="selStade('p_stade','Prospect',this)">Prospect</button>
+            <button class="stade-btn" onclick="selStade('p_stade','En visite',this)">En visite</button>
+            <button class="stade-btn" onclick="selStade('p_stade','Collecte docs',this)">Collecte docs</button>
+            <button class="stade-btn" onclick="selStade('p_stade','Montage',this)">Montage</button>
+          </div><input type="hidden" id="p_stade">
+        </div>
+        <div class="form-group full"><label>Secteur / Activité</label><input type="text" id="p_secteur"></div>
+        <div class="form-group full"><label>Observations</label><textarea id="p_obs"></textarea></div>
+      </div>
+      <button class="btn-primary" id="btn_pipeline" onclick="saveRecord('pipeline')">✅ Ajouter au pipeline</button>
+    </div>
+    <div id="recent-pipeline"></div>
+  </div>
+
+  <div id="form-mep" style="display:none">
+    <div class="section-header"><div class="section-title">💰 MEP du Mois</div><div class="section-desc">Dossiers effectivement débloqués durant le mois</div></div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="m_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
+        <div class="form-group"><label class="required">Date de mise en place</label><input type="date" id="m_date"></div>
+        <div class="form-group"><label class="required">Code client</label><input type="text" id="m_code" placeholder="ex: CI-00123"></div>
+        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="m_nom"></div>
+        <div class="form-group"><label class="required">Montant MEP (FCFA)</label><input type="number" id="m_montant" min="0"></div>
+        <div class="form-group"><label class="required">Durée (mois)</label><input type="number" id="m_duree" min="1"></div>
+        <div class="form-group full"><label class="required">Type de crédit</label>
+          <div class="credit-type-group">
+            <button class="credit-btn BFR" onclick="selCredit('m','BFR',this)">BFR</button>
+            <button class="credit-btn INVEST" onclick="selCredit('m','INVEST',this)">INVEST</button>
+            <button class="credit-btn MICRO" onclick="selCredit('m','MICRO',this)">MICRO</button>
+          </div><input type="hidden" id="m_type">
+        </div>
+        <div class="form-group full"><label>Référence Amplitude</label><input type="text" id="m_ref" placeholder="Numéro de compte / référence crédit"></div>
+        <div class="form-group full"><label>Observations</label><textarea id="m_obs"></textarea></div>
+      </div>
+      <button class="btn-primary" id="btn_mep" onclick="saveRecord('mep')">✅ Enregistrer la MEP</button>
+    </div>
+    <div id="recent-mep"></div>
+  </div>
+
+  <div id="form-regul" style="display:none">
+    <div class="section-header"><div class="section-title">⏳ MEP en Attente de Régularisation</div><div class="section-desc">Dossiers mis en place avec conditions suspensives non levées</div></div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="g_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
+        <div class="form-group"><label class="required">Date MEP initiale</label><input type="date" id="g_date"></div>
+        <div class="form-group"><label class="required">Code client</label><input type="text" id="g_code" placeholder="ex: CI-00123"></div>
+        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="g_nom"></div>
+        <div class="form-group"><label class="required">Montant (FCFA)</label><input type="number" id="g_montant" min="0"></div>
+        <div class="form-group"><label>Référence Amplitude</label><input type="text" id="g_ref"></div>
+        <div class="form-group full"><label class="required">Type de crédit</label>
+          <div class="credit-type-group">
+            <button class="credit-btn BFR" onclick="selCredit('g','BFR',this)">BFR</button>
+            <button class="credit-btn INVEST" onclick="selCredit('g','INVEST',this)">INVEST</button>
+            <button class="credit-btn MICRO" onclick="selCredit('g','MICRO',this)">MICRO</button>
+          </div><input type="hidden" id="g_type">
+        </div>
+        <div class="form-group full"><label class="required">Nature de la régularisation</label><textarea id="g_obs" placeholder="Domiciliation, garantie hypothécaire, assurance vie..."></textarea></div>
+        <div class="form-group full"><label>Délai prévu</label><input type="date" id="g_deadline"></div>
+      </div>
+      <button class="btn-primary" id="btn_regul" onclick="saveRecord('regul')">✅ Enregistrer</button>
+    </div>
+    <div id="recent-regul"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="view" id="view-dashboard">
+  <div class="section-header"><div class="section-title">📊 Dashboard Hebdomadaire</div><div class="section-desc">Données en temps réel — partagées entre tous les CAF</div></div>
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-label">Déposés</div><div class="kpi-value" id="kpi_dep">—</div><div class="kpi-sub">dossiers</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">En analyse</div><div class="kpi-value" id="kpi_ana">—</div><div class="kpi-sub">risque + exploit</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Validés VMEP</div><div class="kpi-value" id="kpi_vmep">—</div><div class="kpi-sub">en attente MEP</div></div>
+    <div class="kpi-card red"><div class="kpi-label">MEP du mois</div><div class="kpi-value" id="kpi_mep">—</div><div class="kpi-sub">dossiers</div></div>
+  </div>
+  <div class="filter-bar">
+    <select id="dash_sem" onchange="renderDashboard()"><option value="">Toutes semaines</option></select>
+    <select id="dash_caf" onchange="renderDashboard()"><option value="">Tous CAF</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select>
+    <select id="dash_mod" onchange="renderDashboard()">
+      <option value="deposes">📥 Déposés</option>
+      <option value="comite">📋 Comité</option>
+      <option value="risque">🔍 Risque</option>
+      <option value="exploit">⚙️ Exploitation</option>
+      <option value="vmep">✅ Validés VMEP</option>
+      <option value="pipeline">🔄 Pipeline</option>
+      <option value="mep">💰 MEP</option>
+      <option value="regul">⏳ Régularisation</option>
+    </select>
+    <button class="btn-export" onclick="exportCSV()">⬇ CSV</button>
+  </div>
+  <div class="table-wrap"><table><thead id="dashHead"></thead><tbody id="dashBody"></tbody></table></div>
+</div>
+
+<!-- SYNTHESE -->
+<div class="view" id="view-synthese">
+  <div class="section-header"><div class="section-title">🗂 Synthèse Globale</div><div class="section-desc">Vue consolidée tous modules — données réelles Supabase</div></div>
+  <div class="filter-bar">
+    <select id="syn_sem" onchange="renderSynthese()"><option value="">Toutes semaines</option></select>
+    <button class="btn-export" onclick="exportAll()">⬇ Export complet</button>
+  </div>
+  <div class="synth-grid" id="synthGrid"></div>
+  <div id="synthDetail"></div>
+</div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL = "https://sdwrmdkldnyfgwnmryqd.supabase.co";
+const SB_KEY = "sb_publishable_PuCF0IQ8FToUlc8gBGyyyQ_7lZPBh3N";
+
+const MODS = {
+  deposes:{l:"Déposés",i:"📥"},comite:{l:"Comité",i:"📋"},
+  risque:{l:"Risque",i:"🔍"},exploit:{l:"Exploitation",i:"⚙️"},
+  vmep:{l:"Validés VMEP",i:"✅"},pipeline:{l:"Pipeline",i:"🔄"},
+  mep:{l:"MEP",i:"💰"},regul:{l:"Régularisation",i:"⏳"}
+};
+
+const PFX = {deposes:"d",comite:"c",risque:"r",exploit:"e",vmep:"v",pipeline:"p",mep:"m",regul:"g"};
+
+let allData = [];
+
+// ====== SUPABASE API ======
+async function sbGet(params="") {
+  const r = await fetch(`${SB_URL}/rest/v1/dossiers?select=*${params}&order=created_at.desc&limit=1000`, {
+    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function sbInsert(row) {
+  const r = await fetch(`${SB_URL}/rest/v1/dossiers`, {
+    method:"POST",
+    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},
+    body: JSON.stringify(row)
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return true;
+}
+
+// ====== UTILS ======
+function getWeek(ds) {
+  const d=new Date(ds),y=d.getFullYear();
+  const j4=new Date(y,0,4),s=new Date(j4);
+  s.setDate(j4.getDate()-((j4.getDay()+6)%7));
+  return `S${String(Math.floor((d-s)/(7*86400000))+1).padStart(2,"0")} ${y}`;
+}
+function fmt(n){return n?Number(n).toLocaleString("fr-FR"):"—";}
+function fmtM(n){if(!n)return "—";const m=n/1e6;return m>=1?m.toFixed(1)+" M":(n/1000).toFixed(0)+" K";}
+function fmtD(s){if(!s)return "—";const[y,m,d]=s.split("T")[0].split("-");return `${d}/${m}/${y}`;}
+
+function toast(msg,type="success"){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.className="toast "+type+" show";
+  setTimeout(()=>t.className="toast",3000);
+}
+function showLoad(v){document.getElementById("loadingOverlay").style.display=v?"flex":"none";}
+
+function setStatus(ok){
+  document.getElementById("statusDot").style.background=ok?"#22c55e":"#ef4444";
+  document.getElementById("statusText").textContent=ok?"En ligne":"Hors ligne";
+}
+
+// ====== TABS ======
+function showTab(name,el){
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  document.querySelectorAll(".nav-tab").forEach(t=>t.classList.remove("active"));
+  document.getElementById("view-"+name).classList.add("active");
+  el.classList.add("active");
+  document.getElementById("moduleBar").style.display=name==="saisie"?"flex":"none";
+  if(name==="dashboard") renderDashboard();
+  if(name==="synthese") renderSynthese();
+}
+
+function showModule(mod,el){
+  document.querySelectorAll("[id^=form-]").forEach(f=>f.style.display="none");
+  document.querySelectorAll(".mod-chip").forEach(c=>c.classList.remove("active"));
+  document.getElementById("form-"+mod).style.display="block";
+  el.classList.add("active");
+  renderRecent(mod);
+}
+
+// ====== CREDIT/STADE ======
+function selCredit(pfx,type,btn){
+  btn.closest(".credit-type-group").querySelectorAll(".credit-btn").forEach(b=>b.classList.remove("selected"));
+  btn.classList.add("selected");
+  document.getElementById(pfx+"_type").value=type;
+}
+function selStade(id,val,btn){
+  btn.closest(".stade-group").querySelectorAll(".stade-btn").forEach(b=>b.classList.remove("selected"));
+  btn.classList.add("selected");
+  document.getElementById(id).value=val;
+}
+
+// ====== SAVE ======
+async function saveRecord(mod){
+  const pfx=PFX[mod];
+  const g=id=>{const e=document.getElementById(pfx+"_"+id);return e?e.value.trim():"";};
+  const caf=g("caf"),date=g("date"),code=g("code"),nom=g("nom");
+  const montant=parseFloat(g("montant")||0),type=g("type");
+  if(!caf||!date||!code||!nom||!montant||!type){toast("⚠️ Champs obligatoires manquants","error");return;}
+
+  const btn=document.getElementById("btn_"+mod);
+  btn.disabled=true;
+  btn.innerHTML='<div class="spinner"></div> Enregistrement...';
+
+  const row={mod,semaine:getWeek(date),date,caf,code,nom,montant,type,
+    duree:parseInt(g("duree"))||null,secteur:g("secteur")||null,
+    obs:g("obs")||null,comtype:g("comtype")||null,stade:g("stade")||null,
+    ref:g("ref")||null,deadline:g("deadline")||null};
+
+  try {
+    await sbInsert(row);
+    allData.unshift({...row,created_at:new Date().toISOString()});
+    renderRecent(mod);
+    toast("✅ Enregistré dans la base — "+nom);
+    // Reset
+    ["caf","date","code","nom","montant","duree","type","secteur","obs","comtype","stade","ref","deadline"].forEach(f=>{
+      const e=document.getElementById(pfx+"_"+f);if(e)e.value="";
+    });
+    document.querySelectorAll("#form-"+mod+" .credit-btn, #form-"+mod+" .stade-btn").forEach(b=>b.classList.remove("selected"));
+    document.getElementById(pfx+"_date").value=new Date().toISOString().split("T")[0];
+  } catch(e){
+    toast("❌ Erreur : "+e.message,"error");
+  }
+  btn.disabled=false;
+  btn.innerHTML="✅ Enregistrer";
+}
+
+// ====== RECENT ======
+function renderRecent(mod){
+  const c=document.getElementById("recent-"+mod);if(!c)return;
+  const rows=allData.filter(r=>r.mod===mod).slice(0,5);
+  if(!rows.length){c.innerHTML=`<div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun enregistrement</div></div>`;return;}
+  c.innerHTML=`<div class="table-wrap"><table>
+    <thead><tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Client</th><th>Type</th><th>Montant</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td><span style="font-size:10px;font-weight:700;color:var(--navy)">${r.semaine}</span></td>
+      <td>${fmtD(r.date)}</td>
+      <td style="font-size:11px">${r.caf?r.caf.split(" ")[0]:"—"}</td>
+      <td><strong>${r.nom}</strong><br><span style="color:var(--muted);font-size:10px">${r.code}</span></td>
+      <td><span class="badge badge-${r.type}">${r.type}</span></td>
+      <td class="amount">${fmtM(r.montant)}</td>
+    </tr>`).join("")}</tbody>
+  </table></div>`;
+}
+
+// ====== DASHBOARD ======
+async function renderDashboard(){
+  showLoad(true);
+  try {
+    allData = await sbGet();
+    setStatus(true);
+  } catch(e){setStatus(false);}
+  showLoad(false);
+
+  const sem=document.getElementById("dash_sem").value;
+  const caf=document.getElementById("dash_caf").value;
+  const mod=document.getElementById("dash_mod").value;
+
+  const sems=[...new Set(allData.map(r=>r.semaine).filter(Boolean))].sort().reverse();
+  const semSel=document.getElementById("dash_sem");
+  const cur=semSel.value;
+  semSel.innerHTML='<option value="">Toutes semaines</option>'+sems.map(s=>`<option${s===cur?" selected":""}>${s}</option>`).join("");
+
+  const flt=(m,s,c)=>allData.filter(r=>r.mod===m&&(!s||r.semaine===s)&&(!c||r.caf===c));
+  document.getElementById("kpi_dep").textContent=flt("deposes",sem,caf).length;
+  document.getElementById("kpi_ana").textContent=flt("risque",sem,caf).length+flt("exploit",sem,caf).length;
+  document.getElementById("kpi_vmep").textContent=flt("vmep",sem,caf).length;
+  document.getElementById("kpi_mep").textContent=flt("mep",sem,caf).length;
+
+  const rows=flt(mod,sem,caf);
+  document.getElementById("dashHead").innerHTML=`<tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th><th>Obs.</th></tr>`;
+  if(!rows.length){
+    document.getElementById("dashBody").innerHTML=`<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">Aucune donnée</div></div></td></tr>`;
+    return;
+  }
+  document.getElementById("dashBody").innerHTML=rows.map(r=>`<tr>
+    <td><span style="font-size:10px;font-weight:700;color:var(--navy)">${r.semaine||"—"}</span></td>
+    <td>${fmtD(r.date)}</td><td style="font-size:11px">${r.caf||"—"}</td>
+    <td style="font-size:11px;color:var(--muted)">${r.code||"—"}</td>
+    <td><strong>${r.nom||"—"}</strong></td>
+    <td><span class="badge badge-${r.type}">${r.type||"—"}</span></td>
+    <td class="amount">${fmt(r.montant)}</td>
+    <td>${r.duree?r.duree+" mois":"—"}</td>
+    <td style="font-size:11px;color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.obs||"—"}</td>
+  </tr>`).join("");
+}
+
+// ====== SYNTHESE ======
+async function renderSynthese(){
+  showLoad(true);
+  try { allData=await sbGet(); setStatus(true); } catch(e){setStatus(false);}
+  showLoad(false);
+
+  const sem=document.getElementById("syn_sem").value;
+  const sems=[...new Set(allData.map(r=>r.semaine).filter(Boolean))].sort().reverse();
+  const synSel=document.getElementById("syn_sem");
+  const cur=synSel.value;
+  synSel.innerHTML='<option value="">Toutes semaines</option>'+sems.map(s=>`<option${s===cur?" selected":""}>${s}</option>`).join("");
+
+  const flt=m=>allData.filter(r=>r.mod===m&&(!sem||r.semaine===sem));
+  document.getElementById("synthGrid").innerHTML=Object.entries(MODS).map(([mod,M])=>{
+    const rows=flt(mod);
+    const vol=rows.reduce((s,r)=>s+(r.montant||0),0);
+    return `<div class="synth-card" onclick="showDetail('${mod}','${sem}')">
+      <div class="synth-card-icon">${M.i}</div>
+      <div class="synth-card-title">${M.l}</div>
+      <div class="synth-card-count">${rows.length} <span style="font-size:12px;font-weight:400;color:var(--muted)">dossiers</span></div>
+      <div class="synth-card-vol">${fmtM(vol)}</div>
+    </div>`;
+  }).join("");
+  document.getElementById("synthDetail").innerHTML="";
+}
+
+function showDetail(mod,sem){
+  const rows=allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem));
+  const M=MODS[mod];
+  if(!rows.length){document.getElementById("synthDetail").innerHTML=`<div class="empty-state"><div class="empty-icon">${M.i}</div><div class="empty-text">Aucune donnée ${M.l}</div></div>`;return;}
+  document.getElementById("synthDetail").innerHTML=`
+    <div style="margin-top:20px">
+      <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:12px">${M.i} ${M.l} — ${rows.length} dossiers — ${fmtM(rows.reduce((s,r)=>s+(r.montant||0),0))}</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th></tr></thead>
+        <tbody>${rows.map(r=>`<tr>
+          <td><span style="font-size:10px;font-weight:700;color:var(--navy)">${r.semaine||"—"}</span></td>
+          <td>${fmtD(r.date)}</td><td style="font-size:11px">${r.caf||"—"}</td>
+          <td style="font-size:11px;color:var(--muted)">${r.code||"—"}</td>
+          <td><strong>${r.nom||"—"}</strong></td>
+          <td><span class="badge badge-${r.type}">${r.type||"—"}</span></td>
+          <td class="amount">${fmt(r.montant)}</td>
+          <td>${r.duree?r.duree+" mois":"—"}</td>
+        </tr>`).join("")}</tbody>
+      </table></div>
+    </div>`;
+}
+
+// ====== EXPORT ======
+function toCSV(rows){
+  const h=["Semaine","Date","CAF","Code","Client","Type","Montant","Duree","Secteur","Obs","Comite","Stade","Ref","Deadline"];
+  const d=rows.map(r=>[r.semaine,fmtD(r.date),r.caf,r.code,r.nom,r.type,r.montant,r.duree,r.secteur,r.obs,r.comtype,r.stade,r.ref,fmtD(r.deadline)]);
+  return [h,...d].map(row=>row.map(v=>`"${v||""}"`).join(";")).join("\n");
+}
+function dl(content,name){
+  const b=new Blob(["\uFEFF"+content],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();
+}
+function exportCSV(){
+  const mod=document.getElementById("dash_mod").value;
+  const sem=document.getElementById("dash_sem").value;
+  const caf=document.getElementById("dash_caf").value;
+  const rows=allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem)&&(!caf||r.caf===caf));
+  if(!rows.length){toast("Aucune donnée","error");return;}
+  dl(toCSV(rows),`CMF_${mod}_${sem||"tout"}.csv`);
+  toast("✅ Export téléchargé");
+}
+function exportAll(){
+  const sem=document.getElementById("syn_sem").value;
+  let content="";
+  for(const[mod,M]of Object.entries(MODS)){
+    const rows=allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem));
+    if(rows.length)content+=`\n\n=== ${M.l.toUpperCase()} ===\n`+toCSV(rows);
+  }
+  if(!content){toast("Aucune donnée","error");return;}
+  dl(content,`CMF_Synthese_${sem||"complet"}.csv`);
+  toast("✅ Export complet téléchargé");
+}
+
+// ====== INIT ======
+async function init(){
+  const today=new Date().toISOString().split("T")[0];
+  document.querySelectorAll("input[type=date]").forEach(e=>e.value=today);
+  document.getElementById("headerWeek").textContent=getWeek(today);
+  document.getElementById("moduleBar").style.display="flex";
+  showLoad(true);
+  try {
+    allData=await sbGet();
+    setStatus(true);
+    renderRecent("deposes");
+  } catch(e){
+    setStatus(false);
+    toast("⚠️ Erreur de connexion à la base de données","error");
+  }
+  showLoad(false);
+}
+
+init();
+</script>
+</body>
+</html>
