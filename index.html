@@ -1944,29 +1944,59 @@ async function renderCAFObjectifs() {
   try{allData=await sbGet();}catch(e){}
 
   const objectifs = await loadObjectifs(mois);
-  const caf = currentUser.nom;
-  const obj = objectifs[caf] || {nb:0, vol:0};
-  const mep_caf = allData.filter(r => r.mod==="mep" && r.date && r.date.split("T")[0].startsWith(mois) && r.caf===caf);
-  const real_nb = mep_caf.length;
-  const real_vol = mep_caf.reduce((s,r)=>s+(r.montant||0),0);
-  const pct_nb = obj.nb ? Math.round((real_nb/obj.nb)*100) : 0;
-  const pct_vol = obj.vol ? Math.round((real_vol/obj.vol)*100) : 0;
+  const isManager = currentRole === "manager";
+
+  let obj, mep_rows, titre_detail, real_nb, real_vol, pct_nb, pct_vol;
+
+  if(isManager) {
+    // Manager : somme de tous les CAF
+    const CAFS = Object.keys(DEFAULT_OBJECTIFS);
+    const tot_obj_nb = CAFS.reduce((s,c)=>(objectifs[c]||DEFAULT_OBJECTIFS[c]||{nb:0}).nb+s,0);
+    const tot_obj_vol = CAFS.reduce((s,c)=>(objectifs[c]||DEFAULT_OBJECTIFS[c]||{vol:0}).vol+s,0);
+    mep_rows = allData.filter(r => r.mod==="mep" && r.date && r.date.split("T")[0].startsWith(mois));
+    real_nb = mep_rows.length;
+    real_vol = mep_rows.reduce((s,r)=>s+(r.montant||0),0);
+    obj = {nb: tot_obj_nb, vol: tot_obj_vol};
+    titre_detail = "MEP de l'équipe ce mois";
+  } else {
+    // CAF : ses propres données
+    const caf = currentUser.nom;
+    obj = objectifs[caf] || DEFAULT_OBJECTIFS[caf] || {nb:0, vol:0};
+    mep_rows = allData.filter(r => r.mod==="mep" && r.date && r.date.split("T")[0].startsWith(mois) && r.caf===caf);
+    real_nb = mep_rows.length;
+    real_vol = mep_rows.reduce((s,r)=>s+(r.montant||0),0);
+    titre_detail = "Dossiers mis en place (MEP) ce mois";
+  }
+
+  pct_nb = obj.nb ? Math.round((real_nb/obj.nb)*100) : 0;
+  pct_vol = obj.vol ? Math.round((real_vol/obj.vol)*100) : 0;
   const avg = Math.round((pct_nb+pct_vol)/2);
   const color = avg>=100?"#16a34a":avg>=70?"#f59e0b":"#CC0000";
 
+  // Mettre à jour le titre de la section
+  const titre = document.querySelector("#view-mesobjectifs .section-title");
+  if(titre) titre.textContent = isManager ? "🎯 Objectifs Équipe — Synthèse" : "🎯 Mes Objectifs";
+  const desc = document.querySelector("#view-mesobjectifs .section-desc");
+  if(desc) desc.textContent = isManager ? "Somme des objectifs et MEP réalisées par toute l'équipe" : "Votre niveau d'atteinte mensuel";
+
   document.getElementById("caf_obj_nb").textContent = obj.nb;
   document.getElementById("caf_real_nb").textContent = real_nb;
+  document.getElementById("caf_real_nb").nextElementSibling && (document.getElementById("caf_real_nb").closest(".kpi-card").querySelector(".kpi-sub").textContent = isManager ? "MEP équipe" : "dossiers MEP");
   document.getElementById("caf_obj_vol").textContent = fmtM(obj.vol);
   document.getElementById("caf_taux").textContent = avg+"%";
   document.getElementById("caf_taux").style.color = color;
   document.getElementById("caf_taux_card").style.borderTopColor = color;
 
-  const statut = avg>=100?"✅ Objectif atteint !":avg>=70?"🟠 Continuez, vous y êtes presque !":"🔴 Encore un effort !";
+  const statut = avg>=100
+    ? (isManager ? "✅ Objectif équipe atteint !" : "✅ Objectif atteint !")
+    : avg>=70
+    ? (isManager ? "🟠 L'équipe est en bonne voie" : "🟠 Continuez, vous y êtes presque !")
+    : (isManager ? "🔴 L'équipe a besoin d'un coup d'accélérateur" : "🔴 Encore un effort !");
 
   document.getElementById("caf_obj_detail").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;text-align:left">
       <div style="background:var(--navy-light);border-radius:10px;padding:20px">
-        <div style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:8px">Dossiers</div>
+        <div style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:8px">Dossiers MEP</div>
         <div style="font-size:28px;font-weight:700;color:var(--navy)">${real_nb} <span style="font-size:14px;color:var(--muted)">/ ${obj.nb}</span></div>
         <div style="background:var(--border);border-radius:4px;height:8px;margin:10px 0">
           <div style="width:${Math.min(pct_nb,100)}%;background:${pct_nb>=100?"#16a34a":pct_nb>=70?"#f59e0b":"#CC0000"};border-radius:4px;height:8px"></div>
@@ -1974,7 +2004,7 @@ async function renderCAFObjectifs() {
         <div style="font-weight:700;color:${pct_nb>=100?"#16a34a":pct_nb>=70?"#f59e0b":"#CC0000"}">${pct_nb}%</div>
       </div>
       <div style="background:var(--navy-light);border-radius:10px;padding:20px">
-        <div style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:8px">Volume</div>
+        <div style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:8px">Volume MEP</div>
         <div style="font-size:22px;font-weight:700;color:var(--navy)">${fmtM(real_vol)} <span style="font-size:12px;color:var(--muted)">/ ${fmtM(obj.vol)}</span></div>
         <div style="background:var(--border);border-radius:4px;height:8px;margin:10px 0">
           <div style="width:${Math.min(pct_vol,100)}%;background:${pct_vol>=100?"#16a34a":pct_vol>=70?"#f59e0b":"#CC0000"};border-radius:4px;height:8px"></div>
@@ -1984,8 +2014,17 @@ async function renderCAFObjectifs() {
     </div>
     <div style="margin-top:20px;padding:16px;background:${avg>=100?"#f0fdf4":avg>=70?"#fffbeb":"#fef2f2"};border-radius:10px;text-align:center;font-size:15px;font-weight:600;color:${color}">${statut}</div>
     <div style="margin-top:16px">
-      <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:10px">Dossiers mis en place (MEP) ce mois</div>
-      ${mep_caf.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Type</th><th>Montant</th></tr></thead><tbody>${mep_caf.map(r=>`<tr><td>${fmtD(r.date)}</td><td><strong>${r.nom}</strong></td><td><span class="badge badge-${r.type}">${r.type}</span></td><td class="amount">${fmtM(r.montant)}</td></tr>`).join("")}</tbody></table></div>` : '<div style="color:var(--muted);font-size:13px">Aucune MEP ce mois</div>'}
+      <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:10px">${titre_detail}</div>
+      ${mep_rows.length ? `<div class="table-wrap"><table>
+        <thead><tr><th>Date</th>${isManager?"<th>CAF</th>":""}<th>Client</th><th>Type</th><th>Montant</th></tr></thead>
+        <tbody>${mep_rows.map(r=>`<tr>
+          <td>${fmtD(r.date)}</td>
+          ${isManager?`<td style="font-size:11px">${r.caf||"—"}</td>`:""}
+          <td><strong>${r.nom}</strong></td>
+          <td><span class="badge badge-${r.type}">${r.type}</span></td>
+          <td class="amount">${fmtM(r.montant)}</td>
+        </tr>`).join("")}</tbody>
+      </table></div>` : `<div style="color:var(--muted);font-size:13px">Aucune MEP ce mois</div>`}
     </div>`;
 }
 
