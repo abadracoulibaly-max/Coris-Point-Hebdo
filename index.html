@@ -935,7 +935,8 @@ async function sbDelete(id) {
 
 async function supprimerDossier(btn) {
   const id = parseInt(btn.dataset.id);
-  const nom = btn.dataset.nom || "ce dossier";
+  const rec = allData.find(r => r.id === id);
+  const nom = rec ? rec.nom : "ce dossier";
   await deleteRecord(id, nom);
 }
 
@@ -1160,7 +1161,7 @@ function renderRecent(mod){
       <td><strong>${r.nom}</strong><br><span style="color:var(--muted);font-size:10px">${r.code}</span></td>
       <td><span class="badge badge-${r.type}">${r.type}</span></td>
       <td class="amount">${fmtM(r.montant)}</td>
-      <td><button data-id="${r.id}" data-nom="${r.nom||''}" onclick="supprimerDossier(this)" style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">🗑️</button></td>
+      <td><button data-id="${r.id}" onclick="supprimerDossier(this)" style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">🗑️</button></td>
     </tr>`).join("")+"</tbody></table></div>";
 }
 
@@ -1217,7 +1218,7 @@ async function renderDashboard(){
     <td class="amount">${fmt(r.montant)}</td>
     <td>${r.duree?r.duree+" mois":"—"}</td>
     <td style="font-size:11px;color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.obs||"—"}</td>
-    <td><button data-id="${r.id}" data-nom="${r.nom||''}" onclick="supprimerDossier(this)" style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">🗑️</button></td>
+    <td><button data-id="${r.id}" onclick="supprimerDossier(this)" style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">🗑️</button></td>
   </tr>`).join("");
 }
 
