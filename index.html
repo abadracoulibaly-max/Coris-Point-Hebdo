@@ -263,6 +263,7 @@ tr:hover td{background:var(--navy-light);}
   <button class="nav-tab manager-only" onclick="showTab('suivi',this)">🎯 Suivi Hebdo</button>
   <button class="nav-tab manager-only" onclick="showTab('mensuel',this)">📅 Récap Mensuel</button>
   <button class="nav-tab manager-only" onclick="showTab('synthese',this)">🗂 Synthèse</button>
+  <button class="nav-tab manager-only" onclick="showTab('objectifs',this)">🎯 Objectifs</button>
   <button class="nav-tab manager-only" onclick="showTab('analyse',this)">🔬 Analyse</button>
   <button class="nav-tab manager-only" onclick="showTab('admin',this)">👥 Utilisateurs</button>
 </div>
@@ -629,6 +630,49 @@ tr:hover td{background:var(--navy-light);}
   </div>
   <div class="synth-grid" id="synthGrid"></div>
   <div id="synthDetail"></div>
+</div>
+
+<!-- OBJECTIFS -->
+<div class="view" id="view-objectifs">
+  <div class="section-header">
+    <div class="section-title">🎯 Objectifs Annuels — Dossiers MEP</div>
+    <div class="section-desc">Objectifs fixés par CAF — comparaison avec les mises en place réelles</div>
+  </div>
+
+  <!-- KPI globaux -->
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-label">Objectif total nbre</div><div class="kpi-value" id="obj_tot_nb">—</div><div class="kpi-sub">somme CAF</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Objectif total volume</div><div class="kpi-value" id="obj_tot_vol">—</div><div class="kpi-sub">somme CAF</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">MEP réalisé nbre</div><div class="kpi-value" id="obj_real_nb">—</div><div class="kpi-sub">ce mois</div></div>
+    <div class="kpi-card" id="obj_global_card"><div class="kpi-label">Taux global</div><div class="kpi-value" id="obj_global_taux">—</div><div class="kpi-sub">MEP vs objectif</div></div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="filter-bar">
+    <select id="obj_view_mois" onchange="renderObjectifsView()"><option value="">-- Sélectionner un mois --</option></select>
+    <button class="btn-export" onclick="editObjectifsModal()" style="background:var(--navy);color:white">✏️ Modifier objectifs</button>
+    <button class="btn-export" onclick="exportObjectifs()">⬇ CSV</button>
+  </div>
+
+  <!-- Tableau progression CAF -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>CAF</th>
+          <th>Obj. Nbre</th>
+          <th>MEP Nbre</th>
+          <th>% Nbre</th>
+          <th>Obj. Volume</th>
+          <th>MEP Volume</th>
+          <th>% Volume</th>
+          <th>Progression</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody id="obj_view_table"></tbody>
+    </table>
+  </div>
 </div>
 
 <!-- ANALYSE DG/DEX -->
@@ -1036,6 +1080,7 @@ function showTab(name,el){
   document.getElementById("moduleBar").style.display=name==="saisie"?"flex":"none";
   if(name==="dashboard") renderDashboard();
   if(name==="synthese") renderSynthese();
+  if(name==="objectifs") { populateObjViewMois(); }
   if(name==="analyse") renderAnalyse();
   if(name==="mesobjectifs") { populateCAFObjMois(); }
   if(name==="suivi") { populateSuiviSem(); }
@@ -1116,7 +1161,11 @@ function renderRecent(mod){
 // ====== LOAD DATA ======
 async function loadData(){
   showLoad(true,"Chargement des données...");
-  try{allData=await sbGet();setStatus(true);renderRecent("deposes");}
+  try{
+    allData=await sbGet();
+    setStatus(true);
+    renderRecent("deposes");
+  }
   catch(e){setStatus(false);toast("Erreur connexion base","error");}
   showLoad(false);
 }
@@ -1369,16 +1418,23 @@ async function renderAnalyse(){
   document.getElementById("ana_mep").textContent=meps.length+" | "+fmtM(vol_mep);
   document.getElementById("ana_taux").textContent=taux+"%";
   document.getElementById("ana_taux").style.color=taux>=50?"#16a34a":taux>=30?"#f59e0b":"#CC0000";
-  document.getElementById("ana_bloq").textContent=bloques.filter(r=>r.jours>14).length;
+  // Compter critiques selon seuils par module
+  const critiques = bloques.filter(r=>{
+    const seuil = r.mod==="risque"?5:r.mod==="exploit"?3:14;
+    return r.jours>seuil;
+  });
+  document.getElementById("ana_bloq").textContent=critiques.length;
 
   const MLBL={risque:"Risque",exploit:"Exploitation",vmep:"Validé VMEP",regul:"Régularisation"};
   if(!bloques.length){
     document.getElementById("ana_blocage").innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">&#10003;</div><div class="empty-text">Aucun dossier en attente</div></div></td></tr>';
   } else {
     document.getElementById("ana_blocage").innerHTML=bloques.map(r=>{
-      const c=r.jours>14?"#CC0000":r.jours>7?"#f59e0b":"#16a34a";
-      const bg=r.jours>14?"#fef2f2":r.jours>7?"#fffbeb":"#f0fdf4";
-      const s=r.jours>14?"Critique":r.jours>7?"A surveiller":"Normal";
+      // Seuils par module: risque=5j, exploit=3j, vmep=14j, regul=14j
+    const seuil = r.mod==="risque"?5:r.mod==="exploit"?3:14;
+    const c=r.jours>seuil?"#CC0000":r.jours>(seuil*0.6)?"#f59e0b":"#16a34a";
+    const bg=r.jours>seuil?"#fef2f2":r.jours>(seuil*0.6)?"#fffbeb":"#f0fdf4";
+    const s=r.jours>seuil?"Critique":r.jours>(seuil*0.6)?"A surveiller":"Normal";
       return `<tr style="background:${bg}"><td style="font-size:11px;font-weight:600">${MLBL[r.mod]||r.mod}</td><td style="font-size:11px">${r.caf||"?"}</td><td><strong>${r.nom||"?"}</strong><br><span style="font-size:10px;color:var(--muted)">${r.code||""}</span></td><td><span class="badge badge-${r.type}">${r.type||"?"}</span></td><td class="amount">${fmtM(r.montant)}</td><td>${fmtD(r.date)}</td><td style="font-weight:700;color:${c};font-size:15px">${r.jours}j</td><td style="font-weight:600;color:${c}">${s}</td></tr>`;
     }).join("");
   }
@@ -1579,6 +1635,181 @@ function populateObjMois() {
   if(!cur) { sel.value=currentMois; renderObjectifs(); }
 }
 
+// ====== VUE OBJECTIFS MANAGER ======
+async function renderObjectifsView() {
+  const mois = document.getElementById("obj_view_mois").value;
+  if(!mois) {
+    document.getElementById("obj_view_table").innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">Sélectionnez un mois</div></div></td></tr>';
+    return;
+  }
+
+  try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
+
+  const objectifs = await loadObjectifs(mois);
+  const meps = allData.filter(r => r.mod==="mep" && r.date && r.date.split("T")[0].startsWith(mois));
+
+  const CAFS = [
+    "OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou",
+    "KONÉ Mohamed","BAMBA Bassirou","CISSÉ David","COULIBALY Marie-Edwige",
+    "GOLI Cédric","KPADJIRO Michel","KANGA Jodel","YAO Armel","KOUADIO Marie Ange",
+    "KAMAGATE Ali","COMPAORÉ Aïda","SORO Felicité","DJÈ Jean Charles",
+    "DRAMAN Jean Michel","YOUL Sansan","NIKIEMA Bénédicte","KOUACOU Claire",
+    "TIA Natacha","KAMATÉ Tahibatou"
+  ];
+
+  const rows = CAFS.map(caf => {
+    const obj = objectifs[caf] || DEFAULT_OBJECTIFS[caf] || {nb:0,vol:0};
+    const mep_rows = meps.filter(r => r.caf===caf);
+    const real_nb = mep_rows.length;
+    const real_vol = mep_rows.reduce((s,r)=>s+(r.montant||0),0);
+    const pct_nb = obj.nb ? Math.round((real_nb/obj.nb)*100) : 0;
+    const pct_vol = obj.vol ? Math.round((real_vol/obj.vol)*100) : 0;
+    return {caf, obj_nb:obj.nb, obj_vol:obj.vol, real_nb, real_vol, pct_nb, pct_vol};
+  });
+
+  // KPIs globaux = somme objectifs
+  const tot_obj_nb = rows.reduce((s,r)=>s+r.obj_nb,0);
+  const tot_obj_vol = rows.reduce((s,r)=>s+r.obj_vol,0);
+  const tot_real_nb = rows.reduce((s,r)=>s+r.real_nb,0);
+  const tot_real_vol = rows.reduce((s,r)=>s+r.real_vol,0);
+  const taux_global = tot_obj_nb ? Math.round((tot_real_nb/tot_obj_nb)*100) : 0;
+  const color_global = taux_global>=100?"#16a34a":taux_global>=70?"#f59e0b":"#CC0000";
+
+  document.getElementById("obj_tot_nb").textContent = tot_obj_nb;
+  document.getElementById("obj_tot_vol").textContent = fmtM(tot_obj_vol);
+  document.getElementById("obj_real_nb").textContent = tot_real_nb+" | "+fmtM(tot_real_vol);
+  document.getElementById("obj_global_taux").textContent = taux_global+"%";
+  document.getElementById("obj_global_taux").style.color = color_global;
+  document.getElementById("obj_global_card").style.borderTopColor = color_global;
+
+  function barCell(pct) {
+    const c = pct>=100?"#16a34a":pct>=70?"#f59e0b":"#CC0000";
+    const w = Math.min(pct,100);
+    return `<td>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="flex:1;background:var(--border);border-radius:4px;height:6px;min-width:50px">
+          <div style="width:${w}%;background:${c};border-radius:4px;height:6px"></div>
+        </div>
+        <span style="font-weight:700;color:${c};font-size:12px;white-space:nowrap">${pct}%</span>
+      </div>
+    </td>`;
+  }
+
+  function statutCell(pct_nb, pct_vol) {
+    const avg = (pct_nb+pct_vol)/2;
+    if(avg>=100) return '<span style="background:#f0fdf4;color:#15803d;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">✅ Atteint</span>';
+    if(avg>=70) return '<span style="background:#fffbeb;color:#92400e;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">🟠 En cours</span>';
+    return '<span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">🔴 En retard</span>';
+  }
+
+  document.getElementById("obj_view_table").innerHTML = rows.map(r => `<tr>
+    <td style="font-weight:600;font-size:12px">${r.caf}</td>
+    <td style="text-align:center;font-weight:600">${r.obj_nb}</td>
+    <td style="text-align:center;font-weight:700;color:var(--navy)">${r.real_nb}</td>
+    ${barCell(r.pct_nb)}
+    <td style="text-align:right">${fmtM(r.obj_vol)}</td>
+    <td style="text-align:right;font-weight:700;color:var(--navy)">${fmtM(r.real_vol)}</td>
+    ${barCell(r.pct_vol)}
+    <td style="text-align:center">
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="flex:1;background:var(--border);border-radius:4px;height:8px;min-width:60px">
+          <div style="width:${Math.min((r.pct_nb+r.pct_vol)/2,100)}%;background:${(r.pct_nb+r.pct_vol)/2>=100?"#16a34a":(r.pct_nb+r.pct_vol)/2>=70?"#f59e0b":"#CC0000"};border-radius:4px;height:8px"></div>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:${(r.pct_nb+r.pct_vol)/2>=100?"#16a34a":(r.pct_nb+r.pct_vol)/2>=70?"#f59e0b":"#CC0000"}">${Math.round((r.pct_nb+r.pct_vol)/2)}%</span>
+      </div>
+    </td>
+    <td>${statutCell(r.pct_nb, r.pct_vol)}</td>
+  </tr>`).join("") + `<tr style="background:var(--navy-light);font-weight:700">
+    <td>TOTAL ÉQUIPE</td>
+    <td style="text-align:center">${tot_obj_nb}</td>
+    <td style="text-align:center;color:var(--navy)">${tot_real_nb}</td>
+    ${barCell(taux_global)}
+    <td style="text-align:right">${fmtM(tot_obj_vol)}</td>
+    <td style="text-align:right;color:var(--navy)">${fmtM(tot_real_vol)}</td>
+    ${barCell(tot_obj_vol?Math.round((tot_real_vol/tot_obj_vol)*100):0)}
+    <td><div style="flex:1;background:var(--border);border-radius:4px;height:8px"><div style="width:${Math.min(taux_global,100)}%;background:${color_global};border-radius:4px;height:8px"></div></div></td>
+    <td>${statutCell(taux_global, tot_obj_vol?Math.round((tot_real_vol/tot_obj_vol)*100):0)}</td>
+  </tr>`;
+}
+
+function populateObjViewMois() {
+  const today = new Date();
+  const currentMois = today.toISOString().substring(0,7);
+  const moisList = [...new Set([...allData.filter(r=>r.date).map(r=>r.date.split("T")[0].substring(0,7)), currentMois])].sort().reverse();
+  const sel = document.getElementById("obj_view_mois");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- Sélectionner un mois --</option>' + moisList.map(m=>{
+    const[y,mo]=m.split("-");
+    const label=new Date(y,mo-1,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+    return `<option value="${m}"${m===cur?" selected":""}>${label}</option>`;
+  }).join("");
+  if(!cur) { sel.value=currentMois; renderObjectifsView(); }
+}
+
+function editObjectifsModal() {
+  const mois = document.getElementById("obj_view_mois").value;
+  if(!mois) { toast("Sélectionnez un mois d'abord","error"); return; }
+  const CAFS = Object.keys(DEFAULT_OBJECTIFS);
+  const modal = document.createElement("div");
+  modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:300;padding:20px;overflow-y:auto";
+  modal.innerHTML = `<div style="background:white;border-radius:16px;padding:28px;width:100%;max-width:620px;max-height:90vh;overflow-y:auto">
+    <div style="font-size:17px;font-weight:700;color:var(--navy);margin-bottom:4px">✏️ Modifier les objectifs</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px">${new Date(mois+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})} — Les modifications s'appliquent à ce mois</div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <thead style="background:var(--navy);color:white;position:sticky;top:0">
+        <tr><th style="padding:8px;text-align:left">CAF</th><th style="padding:8px;text-align:center">Nbre objectif</th><th style="padding:8px;text-align:right">Volume (FCFA)</th></tr>
+      </thead>
+      <tbody>
+        ${CAFS.map(caf => {
+          const obj = DEFAULT_OBJECTIFS[caf];
+          const key = caf.replace(/[^a-zA-Z0-9]/g,'_');
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:7px 8px;font-weight:500;font-size:11px">${caf}</td>
+            <td style="padding:7px 8px;text-align:center"><input type="number" id="enb_${key}" value="${obj.nb}" style="width:60px;padding:4px;border:1.5px solid var(--border);border-radius:6px;text-align:center;font-family:Inter,sans-serif"></td>
+            <td style="padding:7px 8px;text-align:right"><input type="number" id="evol_${key}" value="${obj.vol}" style="width:130px;padding:4px;border:1.5px solid var(--border);border-radius:6px;text-align:right;font-family:Inter,sans-serif"></td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button onclick="saveAllObjectifsView('${mois}')" style="flex:2;background:var(--navy);color:white;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">✅ Enregistrer tous les objectifs</button>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="flex:1;border:1.5px solid var(--border);background:none;padding:12px;border-radius:8px;font-size:14px;cursor:pointer;font-family:Inter,sans-serif">Annuler</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function saveAllObjectifsView(mois) {
+  const CAFS = Object.keys(DEFAULT_OBJECTIFS);
+  showLoad(true,"Enregistrement...");
+  let ok=0;
+  for(const caf of CAFS) {
+    const key = caf.replace(/[^a-zA-Z0-9]/g,'_');
+    const nb = parseInt(document.getElementById("enb_"+key)?.value||0);
+    const vol = parseInt(document.getElementById("evol_"+key)?.value||0);
+    if(await saveObjectif(caf,mois,nb,vol)) ok++;
+  }
+  showLoad(false);
+  document.querySelector("[style*='position:fixed'][style*='inset:0']")?.remove();
+  toast("✅ "+ok+" objectifs enregistrés");
+  renderObjectifsView();
+}
+
+function exportObjectifs() {
+  const mois = document.getElementById("obj_view_mois").value;
+  if(!mois){toast("Sélectionnez un mois","error");return;}
+  const rows = document.querySelectorAll("#obj_view_table tr");
+  const csv = ["CAF;Obj.Nbre;MEP Nbre;% Nbre;Obj.Volume;MEP Volume;% Volume;Progression;Statut"];
+  rows.forEach(r=>{
+    const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim().replace(/\s+/g," "));
+    if(cells.length) csv.push(cells.join(";"));
+  });
+  const b=new Blob(["\uFEFF"+csv.join("\n")],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);
+  a.download="CMF_Objectifs_"+mois+".csv";a.click();
+  toast("✅ Export téléchargé");
+}
+
 // ====== CAF OBJECTIFS ======
 async function renderCAFObjectifs() {
   const mois = document.getElementById("caf_obj_mois").value;
@@ -1588,9 +1819,9 @@ async function renderCAFObjectifs() {
   const objectifs = await loadObjectifs(mois);
   const caf = currentUser.nom;
   const obj = objectifs[caf] || {nb:0, vol:0};
-  const deposes = allData.filter(r => r.mod==="deposes" && r.date && r.date.split("T")[0].startsWith(mois) && r.caf===caf);
-  const real_nb = deposes.length;
-  const real_vol = deposes.reduce((s,r)=>s+(r.montant||0),0);
+  const mep_caf = allData.filter(r => r.mod==="mep" && r.date && r.date.split("T")[0].startsWith(mois) && r.caf===caf);
+  const real_nb = mep_caf.length;
+  const real_vol = mep_caf.reduce((s,r)=>s+(r.montant||0),0);
   const pct_nb = obj.nb ? Math.round((real_nb/obj.nb)*100) : 0;
   const pct_vol = obj.vol ? Math.round((real_vol/obj.vol)*100) : 0;
   const avg = Math.round((pct_nb+pct_vol)/2);
@@ -1626,8 +1857,8 @@ async function renderCAFObjectifs() {
     </div>
     <div style="margin-top:20px;padding:16px;background:${avg>=100?"#f0fdf4":avg>=70?"#fffbeb":"#fef2f2"};border-radius:10px;text-align:center;font-size:15px;font-weight:600;color:${color}">${statut}</div>
     <div style="margin-top:16px">
-      <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:10px">Détail des dossiers déposés ce mois</div>
-      ${deposes.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Type</th><th>Montant</th></tr></thead><tbody>${deposes.map(r=>`<tr><td>${fmtD(r.date)}</td><td><strong>${r.nom}</strong></td><td><span class="badge badge-${r.type}">${r.type}</span></td><td class="amount">${fmtM(r.montant)}</td></tr>`).join("")}</tbody></table></div>` : '<div style="color:var(--muted);font-size:13px">Aucun dossier déposé ce mois</div>'}
+      <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:10px">Dossiers mis en place (MEP) ce mois</div>
+      ${mep_caf.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Type</th><th>Montant</th></tr></thead><tbody>${mep_caf.map(r=>`<tr><td>${fmtD(r.date)}</td><td><strong>${r.nom}</strong></td><td><span class="badge badge-${r.type}">${r.type}</span></td><td class="amount">${fmtM(r.montant)}</td></tr>`).join("")}</tbody></table></div>` : '<div style="color:var(--muted);font-size:13px">Aucune MEP ce mois</div>'}
     </div>`;
 }
 
