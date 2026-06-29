@@ -585,15 +585,15 @@ tr:hover td{background:var(--navy-light);}
     <select id="suivi_sem" onchange="renderSuivi()"><option value="">-- Sélectionner une semaine --</option></select>
     <button class="btn-export" onclick="exportSuivi()">⬇ CSV</button>
   </div>
-  <div class="kpi-row">
-    <div class="kpi-card"><div class="kpi-label">Prévus</div><div class="kpi-value" id="sv_prevu">—</div><div class="kpi-sub">dossiers planifiés</div></div>
-    <div class="kpi-card blue"><div class="kpi-label">Déposés</div><div class="kpi-value" id="sv_realise">—</div><div class="kpi-sub">dossiers réels</div></div>
-    <div class="kpi-card gold"><div class="kpi-label">Volume prévu</div><div class="kpi-value" id="sv_vol_prevu">—</div><div class="kpi-sub">FCFA</div></div>
-    <div class="kpi-card" id="sv_ecart_card"><div class="kpi-label">Écart global</div><div class="kpi-value" id="sv_ecart">—</div><div class="kpi-sub">dossiers vs prévu</div></div>
+  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi-card"><div class="kpi-label">Prévus (nbre)</div><div class="kpi-value" id="sv_prevu">—</div><div class="kpi-sub" id="sv_vol_prevu_sub">vol prévu: —</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Déposés (nbre)</div><div class="kpi-value" id="sv_realise">—</div><div class="kpi-sub" id="sv_vol_realise_sub">vol réalisé: —</div></div>
+    <div class="kpi-card" id="sv_ecart_card"><div class="kpi-label">Écart nombre</div><div class="kpi-value" id="sv_ecart">—</div><div class="kpi-sub">dossiers vs prévu</div></div>
+    <div class="kpi-card gold" id="sv_ecart_vol_card"><div class="kpi-label">Écart volume</div><div class="kpi-value" id="sv_ecart_vol">—</div><div class="kpi-sub">FCFA vs prévu</div></div>
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>CAF</th><th>Prévus</th><th>Vol. Prévu</th><th>Déposés</th><th>Vol. Déposé</th><th>Écart Nbre</th><th>Écart Volume</th><th>Statut</th></tr></thead>
+      <thead><tr><th>CAF</th><th>Prévus</th><th>Vol. Prévu</th><th>Déposés</th><th>Vol. Réalisé</th><th>Écart Nbre</th><th>% Nbre</th><th>Écart Volume</th><th>% Volume</th><th>Statut</th></tr></thead>
       <tbody id="suiviTable"></tbody>
     </table>
   </div>
@@ -1195,12 +1195,19 @@ async function renderSuivi(){
   const tot_vol_prevu=data.reduce((s,r)=>s+r.vol_prevu,0);
   const ecart=tot_realise-tot_prevu;
 
+  const tot_vol_realise=data.reduce((s,r)=>s+r.vol_realise,0);
+  const ecart_vol=tot_vol_realise-tot_vol_prevu;
+
   document.getElementById("sv_prevu").textContent=tot_prevu;
+  document.getElementById("sv_vol_prevu_sub").textContent="vol prévu: "+fmtM(tot_vol_prevu);
   document.getElementById("sv_realise").textContent=tot_realise;
-  document.getElementById("sv_vol_prevu").textContent=fmtM(tot_vol_prevu);
+  document.getElementById("sv_vol_realise_sub").textContent="vol réalisé: "+fmtM(tot_vol_realise);
   document.getElementById("sv_ecart").textContent=(ecart>=0?"+":"")+ecart;
   document.getElementById("sv_ecart").style.color=ecart>=0?"#16a34a":"#CC0000";
   document.getElementById("sv_ecart_card").style.borderTopColor=ecart>=0?"#16a34a":"#CC0000";
+  document.getElementById("sv_ecart_vol").textContent=(ecart_vol>=0?"+":"")+fmtM(Math.abs(ecart_vol));
+  document.getElementById("sv_ecart_vol").style.color=ecart_vol>=0?"#16a34a":"#CC0000";
+  document.getElementById("sv_ecart_vol_card").style.borderTopColor=ecart_vol>=0?"#16a34a":"#CC0000";
 
   if(!data.length){document.getElementById("suiviTable").innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">Aucune donnée pour '+sem+'</div></div></td></tr>';return;}
 
@@ -1210,23 +1217,30 @@ async function renderSuivi(){
       r.nb_realise===0?'<span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">Aucun dépôt</span>':
       ok?'<span style="background:#f0fdf4;color:#15803d;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">Objectif atteint</span>':
       '<span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">En retard</span>';
+    const pct_nb = r.nb_prevu>0 ? Math.round((r.nb_realise/r.nb_prevu)*100) : null;
+    const pct_vol = r.vol_prevu>0 ? Math.round((r.vol_realise/r.vol_prevu)*100) : null;
     return `<tr>
       <td style="font-weight:600;font-size:12px">${r.caf}</td>
-      <td style="text-align:center">${r.nb_prevu}</td>
-      <td style="text-align:right" class="amount">${fmtM(r.vol_prevu)}</td>
-      <td style="text-align:center;font-weight:600">${r.nb_realise}</td>
-      <td style="text-align:right" class="amount">${fmtM(r.vol_realise)}</td>
+      <td style="text-align:center">${r.nb_prevu||"—"}</td>
+      <td style="text-align:right" class="amount">${r.vol_prevu?fmtM(r.vol_prevu):"—"}</td>
+      <td style="text-align:center;font-weight:700">${r.nb_realise}</td>
+      <td style="text-align:right;font-weight:700" class="amount">${fmtM(r.vol_realise)}</td>
       <td style="text-align:center;font-weight:700;color:${r.ecart_nb>=0?"#16a34a":"#CC0000"}">${r.ecart_nb>=0?"+":""}${r.ecart_nb}</td>
+      <td style="text-align:center">${pct_nb!==null?`<span style="font-weight:700;color:${pct_nb>=100?"#16a34a":pct_nb>=70?"#f59e0b":"#CC0000"}">${pct_nb}%</span>`:"—"}</td>
       <td style="text-align:right;font-weight:700;color:${r.ecart_vol>=0?"#16a34a":"#CC0000"}">${r.ecart_vol>=0?"+":""}${fmtM(Math.abs(r.ecart_vol))}</td>
+      <td style="text-align:center">${pct_vol!==null?`<span style="font-weight:700;color:${pct_vol>=100?"#16a34a":pct_vol>=70?"#f59e0b":"#CC0000"}">${pct_vol}%</span>`:"—"}</td>
       <td>${statut}</td>
     </tr>`;
   }).join("")+`<tr style="background:var(--navy-light);font-weight:700">
-    <td>TOTAL</td><td style="text-align:center">${tot_prevu}</td>
-    <td style="text-align:right">${fmtM(tot_vol_prevu)}</td>
-    <td style="text-align:center">${tot_realise}</td>
-    <td style="text-align:right">${fmtM(data.reduce((s,r)=>s+r.vol_realise,0))}</td>
+    <td>TOTAL</td>
+    <td style="text-align:center">${tot_prevu||"—"}</td>
+    <td style="text-align:right">${tot_vol_prevu?fmtM(tot_vol_prevu):"—"}</td>
+    <td style="text-align:center;font-weight:700">${tot_realise}</td>
+    <td style="text-align:right;font-weight:700">${fmtM(tot_vol_realise)}</td>
     <td style="text-align:center;color:${ecart>=0?"#16a34a":"#CC0000"}">${ecart>=0?"+":""}${ecart}</td>
-    <td style="text-align:right;color:${data.reduce((s,r)=>s+r.ecart_vol,0)>=0?"#16a34a":"#CC0000"}">${fmtM(Math.abs(data.reduce((s,r)=>s+r.ecart_vol,0)))}</td>
+    <td style="text-align:center;color:${tot_prevu>0?(Math.round(tot_realise/tot_prevu*100)>=100?"#16a34a":Math.round(tot_realise/tot_prevu*100)>=70?"#f59e0b":"#CC0000"):"var(--muted)"}">${tot_prevu>0?Math.round(tot_realise/tot_prevu*100)+"%":"—"}</td>
+    <td style="text-align:right;color:${ecart_vol>=0?"#16a34a":"#CC0000"}">${ecart_vol>=0?"+":""}${fmtM(Math.abs(ecart_vol))}</td>
+    <td style="text-align:center;color:${tot_vol_prevu>0?(Math.round(tot_vol_realise/tot_vol_prevu*100)>=100?"#16a34a":Math.round(tot_vol_realise/tot_vol_prevu*100)>=70?"#f59e0b":"#CC0000"):"var(--muted)"}">${tot_vol_prevu>0?Math.round(tot_vol_realise/tot_vol_prevu*100)+"%":"—"}</td>
     <td></td>
   </tr>`;
 }
