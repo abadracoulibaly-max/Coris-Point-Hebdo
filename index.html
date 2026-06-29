@@ -255,6 +255,21 @@ tr:hover td{background:var(--navy-light);}
 </header>
 
 <div class="role-banner" id="roleBanner"></div>
+<div id="alerteBanner" style="display:none;background:#fef2f2;border-bottom:2px solid #CC0000;padding:10px 20px;display:none">
+  <div style="max-width:960px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px">⚠️</span>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#991b1b" id="alerteBannerTitle">CAF sans saisie depuis 3 jours ouvrés</div>
+        <div style="font-size:12px;color:#b91c1c" id="alerteBannerText"></div>
+      </div>
+    </div>
+    <button onclick="showTab('analyse',document.querySelector('.nav-tab[onclick*=analyse]'))" 
+      style="background:#CC0000;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:Inter,sans-serif">
+      Voir détails →
+    </button>
+  </div>
+</div>
 
 <div class="nav-tabs" id="navTabs">
   <button class="nav-tab active" onclick="showTab('saisie',this)">📝 Saisie</button>
@@ -1172,6 +1187,8 @@ async function loadData(){
     allData=await sbGet();
     setStatus(true);
     renderRecent("deposes");
+    // Vérifier alertes CAF dès la connexion (managers uniquement)
+    if(currentRole === "manager") renderAlertesCAF(allData);
   }
   catch(e){setStatus(false);toast("Erreur connexion base","error");}
   showLoad(false);
@@ -1390,10 +1407,113 @@ function exportSuivi(){const sem=document.getElementById("suivi_sem").value;if(!
 function exportMensuel(){const mois=document.getElementById("mens_mois").value;if(!mois){toast("Sélectionnez un mois","error");return;}const rows=document.querySelectorAll("#mensuelTable tr");const csv=["CAF;Nb;Volume;BFR;INVEST;MICRO;Ticket moyen;% volume"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim().replace(/\s+/g," "));if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Mensuel_"+mois+".csv");toast("Export téléchargé");}
 function exportAll(){const sem=document.getElementById("syn_sem").value;let content="";for(const[mod,M]of Object.entries(MODS)){const rows=allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem));if(rows.length)content+="\n\n=== "+M.l.toUpperCase()+" ===\n"+toCSV(rows);}if(!content){toast("Aucune donnée","error");return;}dl(content,"CMF_Synthese_"+(sem||"complet")+".csv");toast("Export complet téléchargé");}
 
+// ====== ALERTES CAF ======
+function joursOuvresDepuis(dateStr) {
+  const debut = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  debut.setHours(0,0,0,0);
+  let jours = 0;
+  let current = new Date(debut);
+  current.setDate(current.getDate() + 1); // commencer le lendemain
+  while(current <= today) {
+    const dow = current.getDay();
+    if(dow !== 0 && dow !== 6) jours++; // lundi=1 à vendredi=5
+    current.setDate(current.getDate() + 1);
+  }
+  return jours;
+}
+
+function getLastSaisieByCAF(data) {
+  const CAF_LIST = [
+    "OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou",
+    "KONÉ Mohamed","BAMBA Bassirou","CISSÉ David","COULIBALY Marie-Edwige",
+    "GOLI Cédric","KPADJIRO Michel","KANGA Jodel","YAO Armel","KOUADIO Marie Ange",
+    "KAMAGATE Ali","COMPAORÉ Aïda","SORO Felicité","DJÈ Jean Charles",
+    "DRAMAN Jean Michel","YOUL Sansan","NIKIEMA Bénédicte","KOUACOU Claire",
+    "TIA Natacha","KAMATÉ Tahibatou"
+  ];
+
+  return CAF_LIST.map(caf => {
+    // Chercher la dernière saisie toutes modules confondus
+    const saisies = data.filter(r => r.caf === caf && r.created_at);
+    if(!saisies.length) return { caf, derniere: null, joursOuvres: 999, jamaisSaisi: true };
+    
+    // Trier par date de création décroissante
+    saisies.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    const derniere = saisies[0].created_at;
+    const joursOuvres = joursOuvresDepuis(derniere);
+    return { caf, derniere, joursOuvres, jamaisSaisi: false };
+  });
+}
+
+function renderAlertesCAF(data) {
+  const stats = getLastSaisieByCAF(data);
+  const enAlerte = stats.filter(s => s.joursOuvres >= 3).sort((a,b) => b.joursOuvres - a.joursOuvres);
+  
+  // Bandeau header
+  const banner = document.getElementById("alerteBanner");
+  if(banner) {
+    if(enAlerte.length > 0 && currentRole === "manager") {
+      banner.style.display = "block";
+      document.getElementById("alerteBannerTitle").textContent = 
+        `⚠️ ${enAlerte.length} CAF sans saisie depuis 3+ jours ouvrés`;
+      document.getElementById("alerteBannerText").textContent = 
+        enAlerte.slice(0,3).map(s => s.caf.split(" ")[0]).join(", ") + 
+        (enAlerte.length > 3 ? ` et ${enAlerte.length-3} autre(s)` : "");
+    } else {
+      banner.style.display = "none";
+    }
+  }
+
+  // Section dans Analyse
+  const container = document.getElementById("alerte_caf_table");
+  if(!container) return;
+
+  if(!enAlerte.length) {
+    container.innerHTML = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">✅</span>
+      <div style="font-size:13px;font-weight:600;color:#15803d">Tous les CAF ont saisi au cours des 3 derniers jours ouvrés</div>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>CAF</th>
+      <th>Dernière saisie</th>
+      <th>Jours ouvrés écoulés</th>
+      <th>Statut</th>
+      <th>Module concerné</th>
+    </tr></thead>
+    <tbody>${enAlerte.map(s => {
+      const color = s.joursOuvres >= 5 ? "#CC0000" : "#f59e0b";
+      const bg = s.joursOuvres >= 5 ? "#fef2f2" : "#fffbeb";
+      const statut = s.jamaisSaisi ? "Jamais saisi" : 
+                     s.joursOuvres >= 5 ? "Critique" : "À relancer";
+      
+      // Trouver le dernier module saisi
+      const saisies = data.filter(r => r.caf === s.caf && r.created_at);
+      saisies.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      const dernierMod = saisies.length ? saisies[0].mod : "—";
+      const MODS = {deposes:"Déposés",comite:"Comité",risque:"Risque",exploit:"Exploitation",vmep:"Validé VMEP",pipeline:"Pipeline",mep:"MEP",regul:"Régularisation"};
+
+      return `<tr style="background:${bg}">
+        <td style="font-weight:700;font-size:12px">${s.caf}</td>
+        <td style="font-size:12px">${s.derniere ? fmtD(s.derniere.split("T")[0]) : "—"}</td>
+        <td style="text-align:center;font-weight:700;font-size:15px;color:${color}">${s.jamaisSaisi ? "∞" : s.joursOuvres+"j"}</td>
+        <td><span style="background:${bg};color:${color};border:1px solid ${color};padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">${statut}</span></td>
+        <td style="font-size:11px;color:var(--muted)">${s.jamaisSaisi ? "Aucune saisie" : (MODS[dernierMod]||dernierMod)}</td>
+      </tr>`;
+    }).join("")}</tbody>
+  </table></div>`;
+}
+
 // ====== ANALYSE ======
 async function renderAnalyse(){
   populateObjMois();
   try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
+  renderAlertesCAF(allData);
   const sem=document.getElementById("ana_sem").value;
   const mois=document.getElementById("ana_mois").value;
 
