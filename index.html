@@ -641,11 +641,18 @@ async function sbSignOut(token) {
 }
 
 async function getProfile(userId, token) {
-  const r = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${userId}&select=*`, {
-    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+token}
-  });
-  const data = await r.json();
-  return data[0];
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${userId}&select=*`, {
+      headers:{"apikey":SB_KEY,"Authorization":"Bearer "+token}
+    });
+    if(!r.ok) throw new Error("Erreur HTTP " + r.status);
+    const data = await r.json();
+    if(!Array.isArray(data) || data.length === 0) return null;
+    return data[0];
+  } catch(e) {
+    console.error("Erreur getProfile:", e);
+    return null;
+  }
 }
 
 async function doLogin() {
@@ -666,12 +673,18 @@ async function doLogin() {
   try {
     const data = await sbAuth(email, pwd);
     if(data.error) throw new Error(data.error_description || data.error);
+    if(!data.access_token) throw new Error("Échec de connexion. Vérifiez vos identifiants.");
+    if(!data.user) throw new Error("Utilisateur introuvable.");
 
     currentSession = data.access_token;
+    
+    // Attendre un peu pour que la session soit établie
+    await new Promise(r => setTimeout(r, 500));
+    
     const profile = await getProfile(data.user.id, currentSession);
 
-    if(!profile) throw new Error("Profil introuvable. Contactez l'administrateur.");
-    if(!profile.actif) throw new Error("Compte désactivé. Contactez l'administrateur.");
+    if(!profile) throw new Error("Profil introuvable. Contactez bcoulibaly@coris-mesofinance.com");
+    if(profile.actif === false) throw new Error("Compte désactivé. Contactez l'administrateur.");
 
     currentUser = profile;
     currentRole = profile.role;
