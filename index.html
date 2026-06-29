@@ -1180,8 +1180,9 @@ async function renderSuivi(){
   try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
 
   const CAF_LIST=["OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou","KONÉ Mohamed","BAMBA Bassirou","CISSÉ David","COULIBALY Marie-Edwige","GOLI Cédric","KPADJIRO Michel","KANGA Jodel","YAO Armel","KOUADIO Marie Ange","KAMAGATE Ali","COMPAORÉ Aïda","SORO Felicité","DJÈ Jean Charles","DRAMAN Jean Michel","YOUL Sansan","NIKIEMA Bénédicte","KOUACOU Claire","TIA Natacha","KAMATÉ Tahibatou"];
-  const prevus=allData.filter(r=>r.mod==="comite"&&r.semaine===sem);
-  const deposes=allData.filter(r=>r.mod==="deposes"&&r.semaine===sem);
+  // Filtrer par semaine (champ semaine OU recalcul depuis date)
+  const prevus=allData.filter(r=>r.mod==="comite"&&(r.semaine===sem||(r.date&&getWeek(r.date.split("T")[0])===sem)));
+  const deposes=allData.filter(r=>r.mod==="deposes"&&(r.semaine===sem||(r.date&&getWeek(r.date.split("T")[0])===sem)));
 
   const data=CAF_LIST.map(caf=>{
     const p=prevus.filter(r=>r.caf===caf);
@@ -1348,8 +1349,10 @@ async function renderAnalyse(){
     return{...r,jours:j};
   }).sort((a,b)=>b.jours-a.jours);
 
-  document.getElementById("ana_dep").textContent=deposes.length;
-  document.getElementById("ana_mep").textContent=meps.length;
+  const vol_dep=deposes.reduce((s,r)=>s+(r.montant||0),0);
+  const vol_mep=meps.reduce((s,r)=>s+(r.montant||0),0);
+  document.getElementById("ana_dep").textContent=deposes.length+" | "+fmtM(vol_dep);
+  document.getElementById("ana_mep").textContent=meps.length+" | "+fmtM(vol_mep);
   document.getElementById("ana_taux").textContent=taux+"%";
   document.getElementById("ana_taux").style.color=taux>=50?"#16a34a":taux>=30?"#f59e0b":"#CC0000";
   document.getElementById("ana_bloq").textContent=bloques.filter(r=>r.jours>14).length;
