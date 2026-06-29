@@ -933,6 +933,12 @@ async function sbDelete(id) {
   if(!r.ok) throw new Error(await r.text());
 }
 
+async function supprimerDossier(btn) {
+  const id = parseInt(btn.dataset.id);
+  const nom = btn.dataset.nom || "ce dossier";
+  await deleteRecord(id, nom);
+}
+
 async function deleteRecord(id, nom) {
   if(!confirm(`Supprimer le dossier de "${nom}" ?\nCette action est irréversible.`)) return;
   try {
@@ -1154,7 +1160,7 @@ function renderRecent(mod){
       <td><strong>${r.nom}</strong><br><span style="color:var(--muted);font-size:10px">${r.code}</span></td>
       <td><span class="badge badge-${r.type}">${r.type}</span></td>
       <td class="amount">${fmtM(r.montant)}</td>
-      <td><button onclick="deleteRecord(${r.id},'${r.nom.replace(/'/g,"\\'")}'')" style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">🗑️</button></td>
+      <td><button data-id="${r.id}" data-nom="${r.nom||''}" onclick="supprimerDossier(this)" style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">🗑️</button></td>
     </tr>`).join("")+"</tbody></table></div>";
 }
 
@@ -1211,7 +1217,7 @@ async function renderDashboard(){
     <td class="amount">${fmt(r.montant)}</td>
     <td>${r.duree?r.duree+" mois":"—"}</td>
     <td style="font-size:11px;color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.obs||"—"}</td>
-    <td><button onclick="deleteRecord(${r.id},'${(r.nom||"").replace(/'/g,"\\'")}'')" style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">🗑️</button></td>
+    <td><button data-id="${r.id}" data-nom="${r.nom||''}" onclick="supprimerDossier(this)" style="background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">🗑️</button></td>
   </tr>`).join("");
 }
 
