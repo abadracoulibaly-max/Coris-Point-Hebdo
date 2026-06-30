@@ -1532,7 +1532,7 @@ function buildSyntheseSheet(wb, data, sem) {
   const kpis = [
     { label: "DOSSIERS DÉPOSÉS", value: deposes.length, sub: fmtM(volDep), color: XL.navy },
     { label: "MEP RÉALISÉES", value: meps.length, sub: fmtM(volMep), color: XL.green },
-    { label: "TAUX TRANSFORMATION", value: tauxTransfo + "%", sub: "dépôt → MEP", color: tauxTransfo >= 50 ? XL.green : XL.amber },
+    { label: "TAUX TRANSFORMATION", value: tauxTransfo + "%", sub: tauxTransfo > 100 ? "MEP incluant dossiers antérieurs" : "dépôt → MEP", color: tauxTransfo >= 50 ? XL.green : XL.amber },
     { label: "VALIDÉS NON MEP", value: vmep.length, sub: "en attente", color: XL.gold },
     { label: "EN ANALYSE", value: risque.length + exploit.length, sub: "risque+exploit", color: XL.blue },
   ];
