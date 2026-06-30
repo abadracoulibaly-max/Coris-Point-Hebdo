@@ -167,6 +167,7 @@ tr:hover td{background:var(--navy-light);}
 
 @media(max-width:600px){.form-grid{grid-template-columns:1fr;}.kpi-row{grid-template-columns:1fr 1fr;}.synth-grid{grid-template-columns:1fr 1fr;}.admin-grid{grid-template-columns:1fr;}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 </head>
 <body>
 
@@ -641,7 +642,7 @@ tr:hover td{background:var(--navy-light);}
   <div class="section-header"><div class="section-title">🗂 Synthèse Globale</div></div>
   <div class="filter-bar">
     <select id="syn_sem" onchange="renderSynthese()"><option value="">Toutes semaines</option></select>
-    <button class="btn-export" onclick="exportAll()">⬇ Export complet</button>
+    <button class="btn-export" onclick="exportRapportPro()" style="background:var(--navy);color:white">📊 Export Rapport Excel (Pro)</button>
   </div>
   <div class="synth-grid" id="synthGrid"></div>
   <div id="synthDetail"></div>
@@ -1450,7 +1451,307 @@ function dl(content,name){const b=new Blob(["\uFEFF"+content],{type:"text/csv;ch
 function exportCSV(){const mod=document.getElementById("dash_mod").value;const sem=document.getElementById("dash_sem").value;const caf=document.getElementById("dash_caf").value;const rows=allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem)&&(!caf||r.caf===caf));if(!rows.length){toast("Aucune donnée","error");return;}dl(toCSV(rows),"CMF_"+mod+"_"+(sem||"tout")+".csv");toast("Export téléchargé");}
 function exportSuivi(){const sem=document.getElementById("suivi_sem").value;if(!sem){toast("Sélectionnez une semaine","error");return;}const rows=document.querySelectorAll("#suiviTable tr");const csv=["CAF;Prévus;Vol.Prévu;Déposés;Vol.Déposé;Écart Nbre;Écart Volume;Statut"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim());if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Suivi_"+sem.replace(" ","_")+".csv");toast("Export téléchargé");}
 function exportMensuel(){const mois=document.getElementById("mens_mois").value;if(!mois){toast("Sélectionnez un mois","error");return;}const rows=document.querySelectorAll("#mensuelTable tr");const csv=["CAF;Nb;Volume;BFR;INVEST;MICRO;Ticket moyen;% volume"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim().replace(/\s+/g," "));if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Mensuel_"+mois+".csv");toast("Export téléchargé");}
-function exportAll(){const sem=document.getElementById("syn_sem").value;let content="";for(const[mod,M]of Object.entries(MODS)){const rows=allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem));if(rows.length)content+="\n\n=== "+M.l.toUpperCase()+" ===\n"+toCSV(rows);}if(!content){toast("Aucune donnée","error");return;}dl(content,"CMF_Synthese_"+(sem||"complet")+".csv");toast("Export complet téléchargé");}
+// ════════════════════════════════════════════════════════
+// EXPORT EXCEL PROFESSIONNEL — TCD + COULEURS + MULTI-FEUILLES
+// ════════════════════════════════════════════════════════
+
+// Palette Coris Mésofinance (codes hex sans #, format requis par xlsx-js-style)
+const XL = {
+  navy: "1A3A7A", blue: "1A5CA8", gold: "C8A84B", red: "CC0000",
+  navyLight: "E8EEF7", white: "FFFFFF", lightGray: "F5F7FA",
+  green: "16A34A", greenLight: "F0FDF4", amber: "F59E0B", amberLight: "FFFBEB"
+};
+
+function xlStyleHeader(bg = XL.navy) {
+  return {
+    font: { bold: true, color: { rgb: XL.white }, sz: 11, name: "Calibri" },
+    fill: { fgColor: { rgb: bg } },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: xlBorderAll()
+  };
+}
+function xlStyleCell(bold = false, bg = null, color = "1a2535") {
+  const s = {
+    font: { bold, color: { rgb: color }, sz: 10, name: "Calibri" },
+    alignment: { vertical: "center" },
+    border: xlBorderAll()
+  };
+  if (bg) s.fill = { fgColor: { rgb: bg } };
+  return s;
+}
+function xlBorderAll() {
+  const b = { style: "thin", color: { rgb: "DDDDDD" } };
+  return { top: b, bottom: b, left: b, right: b };
+}
+function xlStyleTitle() {
+  return { font: { bold: true, sz: 16, color: { rgb: XL.navy }, name: "Calibri" } };
+}
+function xlStyleKPILabel() {
+  return { font: { bold: true, sz: 10, color: { rgb: "6b7a99" }, name: "Calibri" }, alignment: { horizontal: "center" } };
+}
+function xlStyleKPIValue(color = XL.navy) {
+  return { font: { bold: true, sz: 20, color: { rgb: color }, name: "Calibri" }, alignment: { horizontal: "center" } };
+}
+
+function getFilteredExportData(sem) {
+  const result = {};
+  Object.keys(MODS).forEach(mod => {
+    result[mod] = allData.filter(r => r.mod === mod && (!sem || r.semaine === sem));
+  });
+  return result;
+}
+
+function buildSyntheseSheet(wb, data, sem) {
+  const ws = {};
+  const merges = [];
+  let row = 1;
+
+  function setCell(addr, value, style) {
+    ws[addr] = { v: value, t: typeof value === "number" ? "n" : "s" };
+    if (style) ws[addr].s = style;
+  }
+
+  // Titre
+  setCell("A1", "CORIS MÉSOFINANCE CÔTE D'IVOIRE — RAPPORT COMMERCIAL", xlStyleTitle());
+  setCell("A2", "Période : " + (sem || "Toutes semaines") + " — Généré le " + new Date().toLocaleDateString("fr-FR"), { font: { italic: true, sz: 10, color: { rgb: "6b7a99" } } });
+  merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } });
+  merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 9 } });
+
+  row = 4;
+  // KPI principaux
+  const deposes = data.deposes || [];
+  const meps = data.mep || [];
+  const vmep = data.vmep || [];
+  const risque = data.risque || [];
+  const exploit = data.exploit || [];
+
+  const volDep = deposes.reduce((s, r) => s + (r.montant || 0), 0);
+  const volMep = meps.reduce((s, r) => s + (r.montant || 0), 0);
+  const tauxTransfo = deposes.length ? Math.round((meps.length / deposes.length) * 100) : 0;
+
+  const kpis = [
+    { label: "DOSSIERS DÉPOSÉS", value: deposes.length, sub: fmtM(volDep), color: XL.navy },
+    { label: "MEP RÉALISÉES", value: meps.length, sub: fmtM(volMep), color: XL.green },
+    { label: "TAUX TRANSFORMATION", value: tauxTransfo + "%", sub: "dépôt → MEP", color: tauxTransfo >= 50 ? XL.green : XL.amber },
+    { label: "VALIDÉS NON MEP", value: vmep.length, sub: "en attente", color: XL.gold },
+    { label: "EN ANALYSE", value: risque.length + exploit.length, sub: "risque+exploit", color: XL.blue },
+  ];
+
+  kpis.forEach((k, i) => {
+    const col = i * 2; // espace de 2 colonnes par KPI (A-B, C-D, etc.) -> utiliser des colonnes séparées
+  });
+
+  // Disposition KPI en ligne, une colonne par kpi (A,B,C,D,E)
+  const kpiCols = ["A", "B", "C", "D", "E"];
+  kpis.forEach((k, i) => {
+    const col = kpiCols[i];
+    setCell(col + row, k.label, xlStyleKPILabel());
+    setCell(col + (row + 1), k.value, xlStyleKPIValue(k.color));
+    setCell(col + (row + 2), k.sub, { font: { sz: 9, color: { rgb: "6b7a99" } }, alignment: { horizontal: "center" } });
+  });
+
+  row += 5;
+
+  // Tableau récap par module
+  setCell("A" + row, "RÉCAPITULATIF PAR MODULE", { font: { bold: true, sz: 12, color: { rgb: XL.navy } } });
+  row += 1;
+
+  const headerRow = row;
+  ["Module", "Nb dossiers", "Volume (FCFA)"].forEach((h, i) => {
+    setCell(String.fromCharCode(65 + i) + headerRow, h, xlStyleHeader());
+  });
+  row += 1;
+
+  Object.entries(MODS).forEach(([mod, M]) => {
+    const rows = data[mod] || [];
+    const vol = rows.reduce((s, r) => s + (r.montant || 0), 0);
+    setCell("A" + row, M.l, xlStyleCell(false, XL.lightGray));
+    setCell("B" + row, rows.length, xlStyleCell(false, null));
+    setCell("C" + row, vol, xlStyleCell(false, null));
+    ws["C" + row].t = "n";
+    row += 1;
+  });
+
+  // Total
+  setCell("A" + row, "TOTAL", xlStyleCell(true, XL.navyLight));
+  setCell("B" + row, { f: `SUM(B${headerRow + 1}:B${row - 1})` }, xlStyleCell(true, XL.navyLight));
+  ws["B" + row] = { f: `SUM(B${headerRow + 1}:B${row - 1})`, t: "n", s: xlStyleCell(true, XL.navyLight) };
+  ws["C" + row] = { f: `SUM(C${headerRow + 1}:C${row - 1})`, t: "n", s: xlStyleCell(true, XL.navyLight) };
+
+  ws["!ref"] = "A1:J" + (row + 2);
+  ws["!merges"] = merges;
+  ws["!cols"] = [{ wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+  ws["!rows"] = [{ hpt: 22 }];
+  ws["!pageSetup"] = { orientation: "landscape", fitToWidth: 1, fitToHeight: 0 };
+
+  XLSX.utils.book_append_sheet(wb, ws, "Synthèse");
+}
+
+function buildModuleSheet(wb, modKey, modLabel, rows) {
+  const ws = {};
+  const fieldsMap = {
+    deposes: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "secteur", "obs"],
+    comite: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "comtype", "obs"],
+    risque: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "obs"],
+    exploit: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "obs"],
+    vmep: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "comtype", "obs"],
+    pipeline: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "stade", "secteur", "obs"],
+    mep: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "ref", "obs"],
+    regul: ["semaine", "date", "caf", "code", "nom", "type", "montant", "ref", "obs", "deadline"]
+  };
+  const labelsMap = {
+    semaine: "Semaine", date: "Date", caf: "CAF", code: "Code Client", nom: "Client",
+    type: "Type Crédit", montant: "Montant (FCFA)", duree: "Durée (mois)", secteur: "Secteur",
+    obs: "Observations", comtype: "Comité", stade: "Stade", ref: "Référence", deadline: "Délai"
+  };
+
+  const fields = fieldsMap[modKey] || ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "obs"];
+
+  setCell0("A1", modLabel.toUpperCase() + " — DÉTAIL", xlStyleTitle());
+  const merges = [{ s: { r: 0, c: 0 }, e: { r: 0, c: fields.length - 1 } }];
+
+  const headerRow = 3;
+  fields.forEach((f, i) => {
+    setCell0(String.fromCharCode(65 + i) + headerRow, labelsMap[f] || f, xlStyleHeader());
+  });
+
+  rows.forEach((r, idx) => {
+    const xlRow = headerRow + 1 + idx;
+    fields.forEach((f, i) => {
+      let val = r[f];
+      if (f === "date" || f === "deadline") val = val ? fmtD(val) : "";
+      if (f === "montant") { val = val || 0; }
+      const cellAddr = String.fromCharCode(65 + i) + xlRow;
+      const cellStyle = xlStyleCell(false, idx % 2 === 0 ? XL.white : XL.lightGray);
+      ws[cellAddr] = { v: val == null ? "" : val, t: f === "montant" ? "n" : "s", s: cellStyle };
+    });
+  });
+
+  function setCell0(addr, value, style) {
+    ws[addr] = { v: value, t: typeof value === "number" ? "n" : "s" };
+    if (style) ws[addr].s = style;
+  }
+
+  const lastRow = headerRow + rows.length;
+  ws["!ref"] = "A1:" + String.fromCharCode(65 + fields.length - 1) + (lastRow || headerRow + 1);
+  ws["!merges"] = merges;
+  ws["!cols"] = fields.map(f => ({ wch: f === "nom" || f === "obs" ? 28 : f === "code" ? 14 : 16 }));
+  ws["!rows"] = [{ hpt: 22 }];
+  ws["!pageSetup"] = { orientation: "landscape", fitToWidth: 1, fitToHeight: 0 };
+
+  if (!rows.length) {
+    ws["A" + (headerRow + 1)] = { v: "Aucune donnée pour cette période", t: "s", s: { font: { italic: true, color: { rgb: "6b7a99" } } } };
+  }
+
+  // Limiter la longueur du nom de feuille à 31 caractères (limite Excel)
+  const sheetName = modLabel.length > 28 ? modLabel.substring(0, 28) : modLabel;
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+}
+
+function buildTCDSheet(wb, deposes) {
+  const ws = {};
+  function setCell(addr, value, style) {
+    ws[addr] = { v: value, t: typeof value === "number" ? "n" : "s" };
+    if (style) ws[addr].s = style;
+  }
+
+  setCell("A1", "TABLEAU CROISÉ — CAF × TYPE DE CRÉDIT × MONTANT", xlStyleTitle());
+  const merges = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }];
+
+  const CAF_LIST = [...new Set(deposes.map(d => d.caf))].sort();
+  const TYPES = ["BFR", "INVEST", "MICRO", "Causé", "EPS", "Conso", "Agri"];
+
+  const headerRow = 3;
+  setCell("A" + headerRow, "Chargé d'Affaires", xlStyleHeader());
+  TYPES.forEach((t, i) => {
+    setCell(String.fromCharCode(66 + i) + headerRow, t, xlStyleHeader(XL.blue));
+  });
+  setCell(String.fromCharCode(66 + TYPES.length) + headerRow, "TOTAL", xlStyleHeader(XL.gold));
+
+  CAF_LIST.forEach((caf, rIdx) => {
+    const xlRow = headerRow + 1 + rIdx;
+    setCell("A" + xlRow, caf, xlStyleCell(true, XL.navyLight));
+    TYPES.forEach((t, cIdx) => {
+      const colLetter = String.fromCharCode(66 + cIdx);
+      // Formule SOMME.SI.ENS dynamique pointant vers la feuille Déposés
+      const formula = `SUMIFS('Déposés'!G:G,'Déposés'!C:C,"${caf}",'Déposés'!F:F,"${t}")`;
+      ws[colLetter + xlRow] = { f: formula, t: "n", s: xlStyleCell(false, rIdx % 2 === 0 ? XL.white : XL.lightGray) };
+    });
+    const totalCol = String.fromCharCode(66 + TYPES.length);
+    ws[totalCol + xlRow] = { f: `SUM(B${xlRow}:${String.fromCharCode(65+TYPES.length)}${xlRow})`, t: "n", s: xlStyleCell(true, XL.navyLight) };
+  });
+
+  // Ligne total général
+  const totalRow = headerRow + 1 + CAF_LIST.length;
+  setCell("A" + totalRow, "TOTAL GÉNÉRAL", xlStyleCell(true, XL.navy, "FFFFFF"));
+  ws["A" + totalRow].s.fill = { fgColor: { rgb: XL.navy } };
+  TYPES.forEach((t, cIdx) => {
+    const colLetter = String.fromCharCode(66 + cIdx);
+    ws[colLetter + totalRow] = { f: `SUM(${colLetter}${headerRow+1}:${colLetter}${totalRow-1})`, t: "n", s: xlStyleCell(true, XL.navy, "FFFFFF") };
+    ws[colLetter + totalRow].s.fill = { fgColor: { rgb: XL.navy } };
+  });
+  const totalCol = String.fromCharCode(66 + TYPES.length);
+  ws[totalCol + totalRow] = { f: `SUM(${totalCol}${headerRow+1}:${totalCol}${totalRow-1})`, t: "n", s: xlStyleCell(true, XL.navy, "FFFFFF") };
+  ws[totalCol + totalRow].s.fill = { fgColor: { rgb: XL.navy } };
+
+  ws["!ref"] = "A1:" + totalCol + (totalRow + 2);
+  ws["!merges"] = merges;
+  ws["!cols"] = [{ wch: 24 }, ...TYPES.map(() => ({ wch: 12 })), { wch: 14 }];
+  ws["!rows"] = [{ hpt: 22 }];
+
+  if (!CAF_LIST.length) {
+    ws["A" + (headerRow + 1)] = { v: "Aucune donnée pour cette période", t: "s", s: { font: { italic: true, color: { rgb: "6b7a99" } } } };
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, "TCD CAF×Type");
+}
+
+async function exportRapportPro() {
+  const sem = document.getElementById("syn_sem").value;
+
+  if (typeof XLSX === "undefined") {
+    toast("Erreur : bibliothèque Excel non chargée", "error");
+    return;
+  }
+
+  showLoad(true, "Génération du rapport Excel...");
+
+  try {
+    const data = getFilteredExportData(sem);
+    const totalRows = Object.values(data).reduce((s, arr) => s + arr.length, 0);
+
+    if (!totalRows) {
+      showLoad(false);
+      toast("Aucune donnée pour cette période", "error");
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    // 1. Feuille Synthèse
+    buildSyntheseSheet(wb, data, sem);
+
+    // 2. Feuilles détaillées par module (ordre logique du circuit)
+    const moduleOrder = ["deposes", "comite", "risque", "exploit", "vmep", "pipeline", "mep", "regul"];
+    moduleOrder.forEach(mod => {
+      buildModuleSheet(wb, mod, MODS[mod].l, data[mod] || []);
+    });
+
+    // 3. Feuille TCD (basée sur Déposés)
+    buildTCDSheet(wb, data.deposes || []);
+
+    const filename = "CMF_Rapport_" + (sem ? sem.replace(" ", "_") : "Complet") + "_" + new Date().toISOString().split("T")[0] + ".xlsx";
+    XLSX.writeFile(wb, filename);
+
+    showLoad(false);
+    toast("Rapport Excel généré avec succès", "success");
+  } catch (e) {
+    showLoad(false);
+    console.error(e);
+    toast("Erreur génération : " + e.message, "error");
+  }
+}
+
 
 // ====== ALERTES CAF ======
 function allerVersAnalyse() {
