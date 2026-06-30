@@ -791,6 +791,48 @@ let currentUser = null;
 let currentRole = null;
 let currentSession = null;
 
+// ====== GESTION INACTIVITÉ (verrouillage après 15 min sans activité) ======
+const INACTIVITY_LIMIT_MS = 15 * 60 * 1000; // 15 minutes
+let inactivityTimer = null;
+
+function resetInactivityTimer() {
+  if (!currentSession) return; // pas de minuteur tant que personne n'est connecté
+  sessionStorage.setItem("cmf_last_activity", Date.now().toString());
+  clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(handleInactivityTimeout, INACTIVITY_LIMIT_MS);
+}
+
+function startInactivityWatcher() {
+  ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"].forEach(evt => {
+    document.addEventListener(evt, resetInactivityTimer, { passive: true });
+  });
+  resetInactivityTimer();
+}
+
+function stopInactivityWatcher() {
+  clearTimeout(inactivityTimer);
+  ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"].forEach(evt => {
+    document.removeEventListener(evt, resetInactivityTimer);
+  });
+}
+
+async function handleInactivityTimeout() {
+  if (!currentSession) return;
+  // Déconnexion silencieuse côté Supabase (best effort, sans bloquer si le réseau a un souci)
+  try { await sbSignOut(currentSession); } catch (e) {}
+  sessionStorage.removeItem("cmf_session");
+  sessionStorage.removeItem("cmf_last_activity");
+  currentUser = null; currentRole = null; currentSession = null;
+  stopInactivityWatcher();
+  document.getElementById("appPage").style.display = "none";
+  document.getElementById("loginPage").style.display = "flex";
+  const errEl = document.getElementById("loginError");
+  if (errEl) {
+    errEl.textContent = "Session expirée après 15 minutes d'inactivité — veuillez vous reconnecter.";
+    errEl.style.display = "block";
+  }
+}
+
 // ====== AUTH ======
 async function sbAuth(email, password) {
   const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
@@ -861,6 +903,7 @@ async function doLogin() {
     sessionStorage.setItem("cmf_session", JSON.stringify({token:currentSession, user:profile}));
 
     showApp();
+    startInactivityWatcher();
   } catch(e) {
     errEl.textContent = "Erreur : " + e.message;
     errEl.style.display = "block";
@@ -873,7 +916,9 @@ async function doLogin() {
 async function doLogout() {
   if(currentSession) await sbSignOut(currentSession);
   sessionStorage.removeItem("cmf_session");
+  sessionStorage.removeItem("cmf_last_activity");
   currentUser = null; currentRole = null; currentSession = null;
+  stopInactivityWatcher();
   document.getElementById("appPage").style.display = "none";
   document.getElementById("loginPage").style.display = "flex";
 }
@@ -2068,10 +2113,29 @@ async function init(){
   if(saved){
     try{
       const s = JSON.parse(saved);
+
+      // Vérifier si le délai d'inactivité est déjà dépassé depuis le dernier passage
+      const lastActivity = parseInt(sessionStorage.getItem("cmf_last_activity") || "0", 10);
+      const elapsed = Date.now() - lastActivity;
+      if (lastActivity && elapsed >= INACTIVITY_LIMIT_MS) {
+        sessionStorage.removeItem("cmf_session");
+        sessionStorage.removeItem("cmf_last_activity");
+        document.getElementById("loginPage").style.display = "flex";
+        document.getElementById("appPage").style.display = "none";
+        const errEl = document.getElementById("loginError");
+        if (errEl) {
+          errEl.textContent = "Session expirée après 15 minutes d'inactivité — veuillez vous reconnecter.";
+          errEl.style.display = "block";
+        }
+        document.getElementById("loginPwd").addEventListener("keypress", e=>{ if(e.key==="Enter") doLogin(); });
+        return;
+      }
+
       currentSession = s.token;
       currentUser = s.user;
       currentRole = s.user.role;
       showApp();
+      startInactivityWatcher();
       return;
     }catch(e){ sessionStorage.removeItem("cmf_session"); }
   }
