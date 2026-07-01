@@ -2395,7 +2395,7 @@ function renderDosHistorique(historique) {
 
 async function saveStatutDossier() {
   const r = allData.find(x => x.id === currentDosId);
-  if (!r) return;
+  if (!r) { toast("Dossier introuvable", "error"); return; }
 
   const newStatut = document.getElementById("dos_new_statut").value;
   const newDate = document.getElementById("dos_new_date").value;
@@ -2405,7 +2405,7 @@ async function saveStatutDossier() {
     toast("Le statut est identique à l'actuel", "error"); return;
   }
 
-  const historique = r.statut_historique || [];
+  const historique = [...(r.statut_historique || [])];
   historique.push({
     statut: newStatut,
     date: newDate || new Date().toISOString().split("T")[0],
@@ -2414,23 +2414,40 @@ async function saveStatutDossier() {
   });
 
   try {
-    await fetch(`${SB_URL}/rest/v1/dossiers?id=eq.${currentDosId}`, {
+    const resp = await fetch(`${SB_URL}/rest/v1/dossiers?id=eq.${currentDosId}`, {
       method: "PATCH",
-      headers: { "apikey": SB_KEY, "Authorization": "Bearer " + (currentSession || SB_KEY), "Content-Type": "application/json", "Prefer": "return=minimal" },
-      body: JSON.stringify({ statut_dossier: newStatut, statut_date: newDate || new Date().toISOString(), statut_historique: historique })
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + (currentSession || SB_KEY),
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({
+        statut_dossier: newStatut,
+        statut_date: newDate ? newDate + "T00:00:00Z" : new Date().toISOString(),
+        statut_historique: historique
+      })
     });
-    // Mise à jour locale immédiate
+
+    if (!resp.ok) {
+      const errBody = await resp.text();
+      throw new Error("Erreur Supabase " + resp.status + " : " + errBody);
+    }
+
+    // Mise à jour locale uniquement si le PATCH a réussi
     r.statut_dossier = newStatut;
     r.statut_date = newDate;
     r.statut_historique = historique;
 
     renderDosHistorique(historique);
     renderDossiers();
-    // Rafraîchir les KPI du dashboard si visible
     renderKpiStatuts();
     toast("Statut mis à jour ✅", "success");
     document.getElementById("dos_new_comment").value = "";
-  } catch (e) { toast("Erreur : " + e.message, "error"); }
+  } catch (e) {
+    toast("Erreur lors de la mise à jour : " + e.message, "error");
+    console.error("saveStatutDossier error:", e);
+  }
 }
 
 // ====== KPI PAR STATUT (Dashboard) ======
