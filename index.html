@@ -275,6 +275,7 @@ tr:hover td{background:var(--navy-light);}
 <div class="nav-tabs" id="navTabs">
   <button class="nav-tab active" onclick="showTab('saisie',this)">📝 Saisie</button>
   <button class="nav-tab" onclick="showTab('mesobjectifs',this)">🎯 Mes Objectifs</button>
+  <button class="nav-tab" onclick="showTab('dossiers',this)">📁 Dossiers</button>
   <button class="nav-tab manager-only" onclick="showTab('dashboard',this)">📊 Dashboard</button>
   <button class="nav-tab manager-only" onclick="showTab('suivi',this)">🎯 Suivi Hebdo</button>
   <button class="nav-tab manager-only" onclick="showTab('mensuel',this)">📅 Récap Mensuel</button>
@@ -568,6 +569,102 @@ tr:hover td{background:var(--navy-light);}
   </div>
 </div>
 
+<!-- DOSSIERS -->
+<div class="view" id="view-dossiers">
+  <div class="section-header">
+    <div class="section-title">📁 Suivi des dossiers</div>
+    <div class="section-desc">Cycle de vie de vos dossiers — du dépôt à la MEP</div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="filter-bar">
+    <input type="text" id="dos_search" placeholder="🔍 Rechercher un client, code client..." oninput="renderDossiers()" style="flex:2;min-width:180px;padding:8px 12px;font-size:12px">
+    <select id="dos_filter_statut" onchange="renderDossiers()" style="font-size:12px;padding:8px 12px">
+      <option value="">Tous les statuts</option>
+      <option value="depose">Déposé</option>
+      <option value="exploit">À l'exploitation</option>
+      <option value="risque">Au risque</option>
+      <option value="vmep">Validé en attente</option>
+      <option value="regul">MEP à régulariser</option>
+      <option value="mep">MEP</option>
+    </select>
+    <select id="dos_filter_caf" onchange="renderDossiers()" style="font-size:12px;padding:8px 12px" class="manager-only">
+      <option value="">Tous les CAF</option>
+    </select>
+    <button class="btn-export" onclick="exportDossiers()">⬇ CSV</button>
+  </div>
+
+  <!-- Tableau -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Code</th>
+          <th>CAF</th>
+          <th>Type</th>
+          <th>Montant</th>
+          <th>Statut actuel</th>
+          <th>Depuis le</th>
+          <th>Semaine dépôt</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="dos_table"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL CHANGEMENT DE STATUT -->
+<div id="dosModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;overflow-y:auto;padding:20px">
+  <div style="background:white;border-radius:16px;max-width:680px;margin:30px auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:var(--navy)" id="dos_modal_title">Dossier</div>
+        <div style="font-size:12px;color:var(--muted)" id="dos_modal_sub"></div>
+      </div>
+      <button onclick="closeDosModal()" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--muted)">✕</button>
+    </div>
+    <div style="padding:24px">
+      <!-- Infos résumé -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px" id="dos_modal_infos"></div>
+
+      <!-- Changement de statut -->
+      <div style="background:var(--navy-light);border-radius:10px;padding:16px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">🔄 Mettre à jour le statut</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Nouveau statut</label>
+            <select id="dos_new_statut" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
+              <option value="depose">Déposé</option>
+              <option value="exploit">À l'exploitation</option>
+              <option value="risque">Au risque</option>
+              <option value="vmep">Validé en attente</option>
+              <option value="regul">MEP à régulariser</option>
+              <option value="mep">MEP</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Date de transmission</label>
+            <input type="date" id="dos_new_date" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Commentaire (optionnel)</label>
+          <textarea id="dos_new_comment" rows="2" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;resize:vertical" placeholder="Ex: Dossier transmis au risque suite à validation DEX..."></textarea>
+        </div>
+        <button onclick="saveStatutDossier()" style="width:100%;margin-top:12px;background:var(--navy);color:white;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif">✅ Enregistrer le nouveau statut</button>
+      </div>
+
+      <!-- Historique des transitions -->
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">📋 Historique des transitions</div>
+        <div id="dos_modal_histo"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- DASHBOARD -->
 <div class="view" id="view-dashboard">
   <div class="section-header"><div class="section-title">📊 Dashboard</div><div class="section-desc">Vue consolidée — toutes les saisies en temps réel</div></div>
@@ -576,6 +673,37 @@ tr:hover td{background:var(--navy-light);}
     <div class="kpi-card blue"><div class="kpi-label">En analyse</div><div class="kpi-value" id="kpi_ana">—</div><div class="kpi-sub" id="kpi_ana_vol">volume: —</div></div>
     <div class="kpi-card gold"><div class="kpi-label">Validés VMEP</div><div class="kpi-value" id="kpi_vmep">—</div><div class="kpi-sub" id="kpi_vmep_vol">volume: —</div></div>
     <div class="kpi-card red"><div class="kpi-label">MEP du mois</div><div class="kpi-value" id="kpi_mep">—</div><div class="kpi-sub" id="kpi_mep_vol">volume: —</div></div>
+  </div>
+
+  <!-- KPI statuts en temps réel -->
+  <div id="dash_kpi_statuts" style="margin-bottom:20px">
+    <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">📊 Répartition des dossiers par statut actuel</div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px">
+      <div style="background:#E8EEF7;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('depose')">
+        <div style="font-size:20px;font-weight:700;color:#1A3A7A" id="kpi_statut_depose">—</div>
+        <div style="font-size:10px;color:#1A3A7A;font-weight:600;margin-top:3px">📥 Déposés</div>
+      </div>
+      <div style="background:#fffbeb;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('exploit')">
+        <div style="font-size:20px;font-weight:700;color:#92400e" id="kpi_statut_exploit">—</div>
+        <div style="font-size:10px;color:#92400e;font-weight:600;margin-top:3px">⚙️ Exploitation</div>
+      </div>
+      <div style="background:#fce7f3;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('risque')">
+        <div style="font-size:20px;font-weight:700;color:#9d174d" id="kpi_statut_risque">—</div>
+        <div style="font-size:10px;color:#9d174d;font-weight:600;margin-top:3px">🔍 Au risque</div>
+      </div>
+      <div style="background:#f0fdf4;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('vmep')">
+        <div style="font-size:20px;font-weight:700;color:#15803d" id="kpi_statut_vmep">—</div>
+        <div style="font-size:10px;color:#15803d;font-weight:600;margin-top:3px">✅ Validé att.</div>
+      </div>
+      <div style="background:#f3e8ff;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('regul')">
+        <div style="font-size:20px;font-weight:700;color:#6b21a8" id="kpi_statut_regul">—</div>
+        <div style="font-size:10px;color:#6b21a8;font-weight:600;margin-top:3px">⏳ À régul.</div>
+      </div>
+      <div style="background:#dcfce7;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('mep')">
+        <div style="font-size:20px;font-weight:700;color:#15803d" id="kpi_statut_mep">—</div>
+        <div style="font-size:10px;color:#15803d;font-weight:600;margin-top:3px">💰 MEP</div>
+      </div>
+    </div>
   </div>
   <div class="filter-bar">
     <select id="dash_sem" onchange="renderDashboard()"><option value="">Toutes semaines</option></select>
@@ -1147,6 +1275,7 @@ function showTab(name,el){
   el.classList.add("active");
   document.getElementById("moduleBar").style.display=name==="saisie"?"flex":"none";
   if(name==="dashboard") renderDashboard();
+  if(name==="dossiers") { populateDosFilterCaf(); renderDossiers(); }
   if(name==="synthese") renderSynthese();
   if(name==="objectifs") { populateObjViewMois(); }
   if(name==="analyse") renderAnalyse();
@@ -1240,6 +1369,14 @@ async function loadData(){
   showLoad(false);
 }
 
+// Navigation depuis le Dashboard vers la vue Dossiers avec filtre pré-appliqué
+function allerVersDossiers(statut) {
+  showTab("dossiers", document.querySelector(".nav-tab[onclick*=dossiers]"));
+  document.getElementById("dos_filter_statut").value = statut;
+  populateDosFilterCaf();
+  renderDossiers();
+}
+
 // ====== DASHBOARD ======
 async function renderDashboard(){
   showLoad(true,"Chargement...");
@@ -1268,6 +1405,9 @@ async function renderDashboard(){
   document.getElementById("kpi_vmep_vol").textContent=fmtM(vmep_rows.reduce((s,r)=>s+(r.montant||0),0));
   document.getElementById("kpi_mep").textContent=mep_rows.length;
   document.getElementById("kpi_mep_vol").textContent=fmtM(mep_rows.reduce((s,r)=>s+(r.montant||0),0));
+
+  // Mise à jour des KPI par statut en temps réel
+  renderKpiStatuts();
 
   const rows=flt(mod,sem,caf);
   document.getElementById("dashHead").innerHTML="<tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th><th>Obs.</th><th></th></tr>";
@@ -2130,6 +2270,199 @@ function populateObjMois() {
   }).join("");
   // Auto-sélectionner mois courant
   if(!cur) { sel.value=currentMois; renderObjectifs(); }
+}
+
+// ====== SUIVI DOSSIERS — CYCLE DE VIE ======
+
+const STATUTS_DOSSIER = {
+  depose:  { l: "Déposé",              icon: "📥", color: "#1A3A7A", bg: "#E8EEF7" },
+  exploit: { l: "À l'exploitation",    icon: "⚙️", color: "#92400e", bg: "#fffbeb" },
+  risque:  { l: "Au risque",           icon: "🔍", color: "#9d174d", bg: "#fce7f3" },
+  vmep:    { l: "Validé en attente",   icon: "✅", color: "#15803d", bg: "#f0fdf4" },
+  regul:   { l: "MEP à régulariser",   icon: "⏳", color: "#6b21a8", bg: "#f3e8ff" },
+  mep:     { l: "MEP",                 icon: "💰", color: "#15803d", bg: "#dcfce7" }
+};
+
+// Ordre de priorité pour la migration (du plus avancé au moins avancé)
+const STATUT_PRIORITY = ["mep", "regul", "vmep", "risque", "exploit", "depose"];
+
+function getStatutPill(statut) {
+  const s = STATUTS_DOSSIER[statut] || STATUTS_DOSSIER.depose;
+  return `<span style="background:${s.bg};color:${s.color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap">${s.icon} ${s.l}</span>`;
+}
+
+// Récupérer les dossiers déposés avec leur statut actuel
+function getDossiersDeposes() {
+  const deposes = allData.filter(r => r.mod === "deposes");
+  // Un CAF ne voit que ses propres dossiers
+  if (currentRole === "ca") return deposes.filter(r => r.caf === currentUser.nom);
+  return deposes;
+}
+
+function renderDossiers() {
+  const search = (document.getElementById("dos_search")?.value || "").toLowerCase();
+  const filterStatut = document.getElementById("dos_filter_statut")?.value || "";
+  const filterCaf = document.getElementById("dos_filter_caf")?.value || "";
+
+  let list = getDossiersDeposes();
+  if (search) list = list.filter(r => (r.nom||"").toLowerCase().includes(search) || (r.code||"").toLowerCase().includes(search));
+  if (filterStatut) list = list.filter(r => (r.statut_dossier || "depose") === filterStatut);
+  if (filterCaf) list = list.filter(r => r.caf === filterCaf);
+
+  const tbody = document.getElementById("dos_table");
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-text">Aucun dossier</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(r => {
+    const statut = r.statut_dossier || "depose";
+    const statutDate = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
+    return `<tr style="cursor:pointer" onclick="openDosModal(${r.id})">
+      <td><strong>${r.nom || "—"}</strong></td>
+      <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
+      <td style="font-size:11px">${r.caf}</td>
+      <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
+      <td class="amount">${fmtM(r.montant)}</td>
+      <td>${getStatutPill(statut)}</td>
+      <td style="font-size:11px">${statutDate}</td>
+      <td style="font-size:11px">${r.semaine || "—"}</td>
+      <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function populateDosFilterCaf() {
+  const sel = document.getElementById("dos_filter_caf");
+  if (!sel) return;
+  const cafs = [...new Set(getDossiersDeposes().map(r => r.caf))].sort();
+  sel.innerHTML = '<option value="">Tous les CAF</option>' + cafs.map(c => `<option value="${c}">${c}</option>`).join("");
+}
+
+// ====== MODAL DOSSIER ======
+let currentDosId = null;
+
+function openDosModal(id) {
+  currentDosId = id;
+  const r = allData.find(x => x.id === id);
+  if (!r) return;
+
+  document.getElementById("dos_modal_title").textContent = r.nom || "Dossier";
+  document.getElementById("dos_modal_sub").textContent = `${r.code || "—"} · ${r.caf} · ${r.semaine || ""}`;
+
+  document.getElementById("dos_modal_infos").innerHTML = `
+    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Type</div><div style="font-size:14px;font-weight:600">${r.type || "—"}</div></div>
+    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Montant</div><div style="font-size:14px;font-weight:600">${fmtM(r.montant)} FCFA</div></div>
+    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Durée</div><div style="font-size:14px;font-weight:600">${r.duree || "—"} mois</div></div>
+    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Statut actuel</div><div style="font-size:14px">${getStatutPill(r.statut_dossier || "depose")}</div></div>
+  `;
+
+  // Pré-sélectionner le statut actuel
+  document.getElementById("dos_new_statut").value = r.statut_dossier || "depose";
+  document.getElementById("dos_new_date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("dos_new_comment").value = "";
+
+  // Historique des transitions
+  renderDosHistorique(r.statut_historique || []);
+
+  document.getElementById("dosModal").style.display = "block";
+}
+
+function closeDosModal() {
+  document.getElementById("dosModal").style.display = "none";
+  currentDosId = null;
+}
+
+function renderDosHistorique(historique) {
+  const container = document.getElementById("dos_modal_histo");
+  if (!historique.length) {
+    container.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:8px 0">Aucune transition enregistrée</div>`;
+    return;
+  }
+  const reversed = [...historique].reverse();
+  container.innerHTML = reversed.map(h => {
+    const s = STATUTS_DOSSIER[h.statut] || STATUTS_DOSSIER.depose;
+    return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="width:32px;height:32px;border-radius:50%;background:${s.bg};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${s.icon}</div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--navy)">${s.l}</div>
+        <div style="font-size:11px;color:var(--muted)">${fmtD(h.date)} · Par ${h.user}</div>
+        ${h.commentaire ? `<div style="font-size:11px;color:var(--text);margin-top:3px;font-style:italic">${h.commentaire}</div>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function saveStatutDossier() {
+  const r = allData.find(x => x.id === currentDosId);
+  if (!r) return;
+
+  const newStatut = document.getElementById("dos_new_statut").value;
+  const newDate = document.getElementById("dos_new_date").value;
+  const comment = document.getElementById("dos_new_comment").value.trim();
+
+  if (newStatut === (r.statut_dossier || "depose") && !comment) {
+    toast("Le statut est identique à l'actuel", "error"); return;
+  }
+
+  const historique = r.statut_historique || [];
+  historique.push({
+    statut: newStatut,
+    date: newDate || new Date().toISOString().split("T")[0],
+    user: currentUser.nom,
+    commentaire: comment
+  });
+
+  try {
+    await fetch(`${SB_URL}/rest/v1/dossiers?id=eq.${currentDosId}`, {
+      method: "PATCH",
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer " + (currentSession || SB_KEY), "Content-Type": "application/json", "Prefer": "return=minimal" },
+      body: JSON.stringify({ statut_dossier: newStatut, statut_date: newDate || new Date().toISOString(), statut_historique: historique })
+    });
+    // Mise à jour locale immédiate
+    r.statut_dossier = newStatut;
+    r.statut_date = newDate;
+    r.statut_historique = historique;
+
+    renderDosHistorique(historique);
+    renderDossiers();
+    // Rafraîchir les KPI du dashboard si visible
+    renderKpiStatuts();
+    toast("Statut mis à jour ✅", "success");
+    document.getElementById("dos_new_comment").value = "";
+  } catch (e) { toast("Erreur : " + e.message, "error"); }
+}
+
+// ====== KPI PAR STATUT (Dashboard) ======
+function renderKpiStatuts() {
+  const el = document.getElementById("dash_kpi_statuts");
+  if (!el) return;
+  const deposes = allData.filter(r => r.mod === "deposes");
+  Object.entries(STATUTS_DOSSIER).forEach(([key, s]) => {
+    const count = deposes.filter(r => (r.statut_dossier || "depose") === key).length;
+    const el2 = document.getElementById("kpi_statut_" + key);
+    if (el2) el2.textContent = count;
+  });
+}
+
+// ====== EXPORT CSV DOSSIERS ======
+function exportDossiers() {
+  const list = getDossiersDeposes();
+  if (!list.length) { toast("Aucun dossier", "error"); return; }
+  const headers = ["Client","Code","CAF","Type","Montant","Durée","Semaine","Statut","Date statut","Observations"];
+  const rows = list.map(r => [
+    r.nom, r.code, r.caf, r.type, r.montant, r.duree, r.semaine,
+    STATUTS_DOSSIER[r.statut_dossier || "depose"]?.l || "Déposé",
+    r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—",
+    r.obs || ""
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(c => `"${String(c||"").replace(/"/g,'""')}"`).join(";")).join("\n");
+  const b = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(b);
+  a.download = "CMF_Dossiers_" + new Date().toISOString().split("T")[0] + ".csv";
+  a.click();
+  toast("Export téléchargé", "success");
 }
 
 // ====== VUE OBJECTIFS MANAGER ======
