@@ -364,95 +364,43 @@ tr:hover td{background:var(--navy-light);}
     <div id="recent-comite"></div>
   </div>
 
-  <div id="form-risque" style="display:none">
-    <div class="section-header"><div class="section-title">🔍 Analyse Risque</div></div>
-    <div class="card">
-      <div class="form-grid">
-        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="r_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
-        <div class="form-group"><label class="required">Date transmission</label><input type="date" id="r_date"></div>
-        <div class="form-group"><label class="required">Code client</label><input type="text" id="r_code" placeholder="ex: CI-00123"></div>
-        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="r_nom"></div>
-        <div class="form-group"><label class="required">Montant (FCFA)</label><input type="number" id="r_montant" min="0"></div>
-        <div class="form-group"><label class="required">Durée (mois)</label><input type="number" id="r_duree" min="1"></div>
-        <div class="form-group full"><label class="required">Type de crédit</label>
-          <div class="credit-type-group">
-            <button class="credit-btn BFR" onclick="selCredit('r','BFR',this)">BFR</button>
-            <button class="credit-btn INVEST" onclick="selCredit('r','INVEST',this)">INVEST</button>
-            <button class="credit-btn MICRO" onclick="selCredit('r','MICRO',this)">MICRO</button>
-            <button class="credit-btn CAUSE" onclick="selCredit('r','Causé',this)">Causé</button>
-            <button class="credit-btn EPS" onclick="selCredit('r','EPS',this)">EPS</button>
-            <button class="credit-btn CONSO" onclick="selCredit('r','Conso',this)">Conso</button>
-            <button class="credit-btn AGRI" onclick="selCredit('r','Agri',this)">Agri</button>
-          </div><input type="hidden" id="r_type">
-        </div>
-        <div class="form-group full"><label>Observations</label><textarea id="r_obs"></textarea></div>
-      </div>
-      <button class="btn-primary" id="btn_risque" onclick="saveRecord('risque')">✅ Enregistrer</button>
+    <div id="form-risque" style="display:none">
+    <div class="section-header">
+      <div class="section-title">🔍 Analyse Risque</div>
+      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
     </div>
-    <div id="recent-risque"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
+        <tbody id="vue-risque"></tbody>
+      </table>
+    </div>
   </div>
 
-  <div id="form-exploit" style="display:none">
-    <div class="section-header"><div class="section-title">⚙️ Analyse Exploitation</div></div>
-    <div class="card">
-      <div class="form-grid">
-        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="e_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
-        <div class="form-group"><label class="required">Date transmission</label><input type="date" id="e_date"></div>
-        <div class="form-group"><label class="required">Code client</label><input type="text" id="e_code" placeholder="ex: CI-00123"></div>
-        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="e_nom"></div>
-        <div class="form-group"><label class="required">Montant (FCFA)</label><input type="number" id="e_montant" min="0"></div>
-        <div class="form-group"><label class="required">Durée (mois)</label><input type="number" id="e_duree" min="1"></div>
-        <div class="form-group full"><label class="required">Type de crédit</label>
-          <div class="credit-type-group">
-            <button class="credit-btn BFR" onclick="selCredit('e','BFR',this)">BFR</button>
-            <button class="credit-btn INVEST" onclick="selCredit('e','INVEST',this)">INVEST</button>
-            <button class="credit-btn MICRO" onclick="selCredit('e','MICRO',this)">MICRO</button>
-            <button class="credit-btn CAUSE" onclick="selCredit('e','Causé',this)">Causé</button>
-            <button class="credit-btn EPS" onclick="selCredit('e','EPS',this)">EPS</button>
-            <button class="credit-btn CONSO" onclick="selCredit('e','Conso',this)">Conso</button>
-            <button class="credit-btn AGRI" onclick="selCredit('e','Agri',this)">Agri</button>
-          </div><input type="hidden" id="e_type">
-        </div>
-        <div class="form-group full"><label>Observations</label><textarea id="e_obs"></textarea></div>
-      </div>
-      <button class="btn-primary" id="btn_exploit" onclick="saveRecord('exploit')">✅ Enregistrer</button>
+    <div id="form-exploit" style="display:none">
+    <div class="section-header">
+      <div class="section-title">⚙️ Analyse Exploitation</div>
+      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
     </div>
-    <div id="recent-exploit"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
+        <tbody id="vue-exploit"></tbody>
+      </table>
+    </div>
   </div>
 
-  <div id="form-vmep" style="display:none">
-    <div class="section-header"><div class="section-title">✅ Validés Non MEP</div></div>
-    <div class="card">
-      <div class="form-grid">
-        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="v_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
-        <div class="form-group"><label class="required">Date validation</label><input type="date" id="v_date"></div>
-        <div class="form-group"><label class="required">Code client</label><input type="text" id="v_code" placeholder="ex: CI-00123"></div>
-        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="v_nom"></div>
-        <div class="form-group"><label class="required">Montant validé (FCFA)</label><input type="number" id="v_montant" min="0"></div>
-        <div class="form-group"><label class="required">Durée (mois)</label><input type="number" id="v_duree" min="1"></div>
-        <div class="form-group full"><label class="required">Type de crédit</label>
-          <div class="credit-type-group">
-            <button class="credit-btn BFR" onclick="selCredit('v','BFR',this)">BFR</button>
-            <button class="credit-btn INVEST" onclick="selCredit('v','INVEST',this)">INVEST</button>
-            <button class="credit-btn MICRO" onclick="selCredit('v','MICRO',this)">MICRO</button>
-            <button class="credit-btn CAUSE" onclick="selCredit('v','Causé',this)">Causé</button>
-            <button class="credit-btn EPS" onclick="selCredit('v','EPS',this)">EPS</button>
-            <button class="credit-btn CONSO" onclick="selCredit('v','Conso',this)">Conso</button>
-            <button class="credit-btn AGRI" onclick="selCredit('v','Agri',this)">Agri</button>
-          </div><input type="hidden" id="v_type">
-        </div>
-        <div class="form-group full"><label>Comité valideur</label>
-          <div class="stade-group">
-            <button class="stade-btn" onclick="selStade('v_comtype','DEX',this)">DEX</button>
-            <button class="stade-btn" onclick="selStade('v_comtype','CIC',this)">CIC</button>
-            <button class="stade-btn" onclick="selStade('v_comtype','CSC',this)">CSC</button>
-          </div><input type="hidden" id="v_comtype">
-        </div>
-        <div class="form-group full"><label>Motif attente MEP</label><textarea id="v_obs"></textarea></div>
-      </div>
-      <button class="btn-primary" id="btn_vmep" onclick="saveRecord('vmep')">✅ Enregistrer</button>
+    <div id="form-vmep" style="display:none">
+    <div class="section-header">
+      <div class="section-title">✅ Validés Non MEP</div>
+      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
     </div>
-    <div id="recent-vmep"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
+        <tbody id="vue-vmep"></tbody>
+      </table>
+    </div>
   </div>
 
   <div id="form-pipeline" style="display:none">
@@ -492,62 +440,30 @@ tr:hover td{background:var(--navy-light);}
     <div id="recent-pipeline"></div>
   </div>
 
-  <div id="form-mep" style="display:none">
-    <div class="section-header"><div class="section-title">💰 MEP du Mois</div></div>
-    <div class="card">
-      <div class="form-grid">
-        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="m_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
-        <div class="form-group"><label class="required">Date de mise en place</label><input type="date" id="m_date"></div>
-        <div class="form-group"><label class="required">Code client</label><input type="text" id="m_code" placeholder="ex: CI-00123"></div>
-        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="m_nom"></div>
-        <div class="form-group"><label class="required">Montant MEP (FCFA)</label><input type="number" id="m_montant" min="0"></div>
-        <div class="form-group"><label class="required">Durée (mois)</label><input type="number" id="m_duree" min="1"></div>
-        <div class="form-group full"><label class="required">Type de crédit</label>
-          <div class="credit-type-group">
-            <button class="credit-btn BFR" onclick="selCredit('m','BFR',this)">BFR</button>
-            <button class="credit-btn INVEST" onclick="selCredit('m','INVEST',this)">INVEST</button>
-            <button class="credit-btn MICRO" onclick="selCredit('m','MICRO',this)">MICRO</button>
-            <button class="credit-btn CAUSE" onclick="selCredit('m','Causé',this)">Causé</button>
-            <button class="credit-btn EPS" onclick="selCredit('m','EPS',this)">EPS</button>
-            <button class="credit-btn CONSO" onclick="selCredit('m','Conso',this)">Conso</button>
-            <button class="credit-btn AGRI" onclick="selCredit('m','Agri',this)">Agri</button>
-          </div><input type="hidden" id="m_type">
-        </div>
-        <div class="form-group full"><label>Référence Amplitude</label><input type="text" id="m_ref"></div>
-        <div class="form-group full"><label>Observations</label><textarea id="m_obs"></textarea></div>
-      </div>
-      <button class="btn-primary" id="btn_mep" onclick="saveRecord('mep')">✅ Enregistrer la MEP</button>
+    <div id="form-mep" style="display:none">
+    <div class="section-header">
+      <div class="section-title">💰 MEP du Mois</div>
+      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
     </div>
-    <div id="recent-mep"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
+        <tbody id="vue-mep"></tbody>
+      </table>
+    </div>
   </div>
 
-  <div id="form-regul" style="display:none">
-    <div class="section-header"><div class="section-title">⏳ MEP en Attente de Régularisation</div></div>
-    <div class="card">
-      <div class="form-grid">
-        <div class="form-group"><label class="required">Chargé d'Affaires</label><select id="g_caf"><option value="">— Sélectionner —</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select></div>
-        <div class="form-group"><label class="required">Date MEP initiale</label><input type="date" id="g_date"></div>
-        <div class="form-group"><label class="required">Code client</label><input type="text" id="g_code" placeholder="ex: CI-00123"></div>
-        <div class="form-group"><label class="required">Nom du client</label><input type="text" id="g_nom"></div>
-        <div class="form-group"><label class="required">Montant (FCFA)</label><input type="number" id="g_montant" min="0"></div>
-        <div class="form-group"><label>Référence Amplitude</label><input type="text" id="g_ref"></div>
-        <div class="form-group full"><label class="required">Type de crédit</label>
-          <div class="credit-type-group">
-            <button class="credit-btn BFR" onclick="selCredit('g','BFR',this)">BFR</button>
-            <button class="credit-btn INVEST" onclick="selCredit('g','INVEST',this)">INVEST</button>
-            <button class="credit-btn MICRO" onclick="selCredit('g','MICRO',this)">MICRO</button>
-            <button class="credit-btn CAUSE" onclick="selCredit('g','Causé',this)">Causé</button>
-            <button class="credit-btn EPS" onclick="selCredit('g','EPS',this)">EPS</button>
-            <button class="credit-btn CONSO" onclick="selCredit('g','Conso',this)">Conso</button>
-            <button class="credit-btn AGRI" onclick="selCredit('g','Agri',this)">Agri</button>
-          </div><input type="hidden" id="g_type">
-        </div>
-        <div class="form-group full"><label class="required">Nature de la régularisation</label><textarea id="g_obs"></textarea></div>
-        <div class="form-group full"><label>Délai prévu</label><input type="date" id="g_deadline"></div>
-      </div>
-      <button class="btn-primary" id="btn_regul" onclick="saveRecord('regul')">✅ Enregistrer</button>
+    <div id="form-regul" style="display:none">
+    <div class="section-header">
+      <div class="section-title">⏳ Régularisation</div>
+      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
     </div>
-    <div id="recent-regul"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
+        <tbody id="vue-regul"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -647,6 +563,20 @@ tr:hover td{background:var(--navy-light);}
           <div>
             <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Date de transmission</label>
             <input type="date" id="dos_new_date" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Montant validé (FCFA) <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— si différent du montant demandé</span></label>
+          <input type="number" id="dos_new_montant" placeholder="Laisser vide pour conserver le montant initial" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
+        </div>
+        <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Montant validé (FCFA)</label>
+            <input type="number" id="dos_new_montant" placeholder="Laisser vide = montant déposé" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Durée validée (mois)</label>
+            <input type="number" id="dos_new_duree" placeholder="Laisser vide = durée déposée" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
           </div>
         </div>
         <div style="margin-top:10px">
@@ -1285,12 +1215,123 @@ function showTab(name,el){
   if(name==="admin") { loadUsers(); }
 }
 
-function showModule(mod,el){
-  document.querySelectorAll("[id^=form-]").forEach(f=>f.style.display="none");
-  document.querySelectorAll(".mod-chip").forEach(c=>c.classList.remove("active"));
-  document.getElementById("form-"+mod).style.display="block";
+// Vue filtrée pour les CAF sur les modules de suivi (pas de formulaire, liste de leurs dossiers)
+function renderModuleFiltreCAF(mod) {
+  // Masquer le formulaire de saisie, ne garder que le titre et la zone récente
+  const form = document.getElementById("form-" + mod);
+  if (!form) return;
+
+  // Cacher toutes les cards de formulaire
+  form.querySelectorAll(".card").forEach(c => c.style.display = "none");
+
+  // Récupérer le conteneur de la liste (recent-X) ou le créer
+  let listContainer = document.getElementById("recent-" + mod);
+  if (!listContainer) return;
+
+  // Mapping module → statut_dossier correspondant
+  const MOD_TO_STATUT = {
+    risque: "risque",
+    exploit: "exploit",
+    vmep: "vmep",
+    mep: "mep",
+    regul: "regul"
+  };
+  const statut = MOD_TO_STATUT[mod];
+  const modLabels = {
+    risque: "Au risque", exploit: "À l'exploitation",
+    vmep: "Validé en attente", mep: "MEP", regul: "MEP à régulariser"
+  };
+
+  // Filtrer les dossiers déposés par ce CAF avec le statut correspondant
+  const mesDossiers = allData.filter(r =>
+    r.mod === "deposes" &&
+    r.caf === currentUser.nom &&
+    (r.statut_dossier === statut)
+  );
+
+  if (!mesDossiers.length) {
+    listContainer.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📂</div>
+      <div class="empty-text">Aucun de vos dossiers n'est actuellement "${modLabels[mod] || mod}"</div>
+      <div class="empty-sub">Les dossiers apparaissent ici quand vous mettez à jour leur statut dans l'onglet <strong>📁 Dossiers</strong></div>
+    </div>`;
+    return;
+  }
+
+  listContainer.innerHTML = `
+    <div style="background:var(--navy-light);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--navy)">
+      💡 Ces dossiers sont en statut <strong>"${modLabels[mod]}"</strong>. Pour modifier le statut, allez dans l'onglet <strong>📁 Dossiers</strong>.
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Client</th><th>Code</th><th>Type</th><th>Montant demandé</th><th>Montant validé</th><th>Date statut</th><th>Semaine dépôt</th></tr></thead>
+      <tbody>${mesDossiers.map(r => `<tr>
+        <td><strong>${r.nom || "—"}</strong></td>
+        <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
+        <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
+        <td class="amount">${fmtM(r.montant)}</td>
+        <td class="amount" style="color:${r.montant_valide ? 'var(--success)' : 'var(--muted)'}">${r.montant_valide ? fmtM(r.montant_valide) : "—"}</td>
+        <td style="font-size:11px">${r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—"}</td>
+        <td style="font-size:11px">${r.semaine || "—"}</td>
+      </tr>`).join("")}</tbody>
+    </table></div>`;
+}
+
+// Correspondance module → statut_dossier
+const MOD_TO_STATUT = {
+  risque: "risque",
+  exploit: "exploit",
+  vmep: "vmep",
+  mep: "mep",
+  regul: "regul"
+};
+
+function renderVueModule(mod) {
+  const statut = MOD_TO_STATUT[mod];
+  const tbody = document.getElementById("vue-" + mod);
+  if (!tbody) return;
+
+  let list = allData.filter(r => r.mod === "deposes" && (r.statut_dossier || "depose") === statut);
+  if (currentRole === "ca") list = list.filter(r => r.caf === currentUser.nom);
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(r => {
+    const montantAff = r.montant_valide
+      ? `<strong style="color:var(--success)">${fmtM(r.montant_valide)}</strong>`
+      : `<span style="color:var(--muted)">${fmtM(r.montant)}</span>`;
+    const statutDate = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
+    return `<tr style="cursor:pointer" onclick="openDosModal(${r.id})">
+      <td><strong>${r.nom || "—"}</strong></td>
+      <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
+      <td style="font-size:11px">${r.caf}</td>
+      <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
+      <td class="amount">${fmtM(r.montant)}</td>
+      <td>${montantAff}</td>
+      <td style="font-size:11px">${statutDate}</td>
+      <td style="font-size:11px">${r.semaine || "—"}</td>
+      <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function showModule(mod, el) {
+  document.querySelectorAll("[id^=form-]").forEach(f => f.style.display = "none");
+  document.querySelectorAll(".mod-chip").forEach(c => c.classList.remove("active"));
+  document.getElementById("form-" + mod).style.display = "block";
   el.classList.add("active");
-  renderRecent(mod);
+
+  // Modules avec formulaire de saisie : déposés, comité, pipeline
+  const MODS_SAISIE = ["deposes", "comite", "pipeline"];
+  if (MODS_SAISIE.includes(mod)) {
+    renderRecent(mod);
+  } else {
+    // Modules lecture seule (risque, exploit, vmep, mep, regul)
+    // → affichent la liste des dossiers dont le statut_dossier correspond
+    renderVueModule(mod);
+  }
 }
 
 function selCredit(pfx,type,btn){
@@ -1397,14 +1438,38 @@ async function renderDashboard(){
   const ana_rows=[...flt("risque",sem,caf),...flt("exploit",sem,caf)];
   const vmep_rows=flt("vmep",sem,caf);
   const mep_rows=flt("mep",sem,caf);
+
+  // KPI MEP : utiliser les dossiers Déposés avec statut_dossier=mep (montant_valide prioritaire)
+  const mep_statut_rows = allData.filter(r =>
+    r.mod === "deposes" &&
+    (r.statut_dossier === "mep") &&
+    (!caf || r.caf === caf) &&
+    (!sem || r.semaine === sem)
+  );
+  const volMepStatut = mep_statut_rows.reduce((s,r) => s + (r.montant_valide || r.montant || 0), 0);
+
+  // KPI VMEP : dossiers Déposés avec statut vmep ou regul (montant_valide prioritaire)
+  const vmep_statut_rows = allData.filter(r =>
+    r.mod === "deposes" &&
+    (r.statut_dossier === "vmep" || r.statut_dossier === "regul") &&
+    (!caf || r.caf === caf) &&
+    (!sem || r.semaine === sem)
+  );
+
   document.getElementById("kpi_dep").textContent=dep_rows.length;
   document.getElementById("kpi_dep_vol").textContent=fmtM(dep_rows.reduce((s,r)=>s+(r.montant||0),0));
   document.getElementById("kpi_ana").textContent=ana_rows.length;
   document.getElementById("kpi_ana_vol").textContent=fmtM(ana_rows.reduce((s,r)=>s+(r.montant||0),0));
-  document.getElementById("kpi_vmep").textContent=vmep_rows.length;
-  document.getElementById("kpi_vmep_vol").textContent=fmtM(vmep_rows.reduce((s,r)=>s+(r.montant||0),0));
-  document.getElementById("kpi_mep").textContent=mep_rows.length;
-  document.getElementById("kpi_mep_vol").textContent=fmtM(mep_rows.reduce((s,r)=>s+(r.montant||0),0));
+  document.getElementById("kpi_vmep").textContent=vmep_statut_rows.length || vmep_rows.length;
+  document.getElementById("kpi_vmep_vol").textContent=fmtM(
+    vmep_statut_rows.length
+      ? vmep_statut_rows.reduce((s,r)=>s+(r.montant_valide||r.montant||0),0)
+      : vmep_rows.reduce((s,r)=>s+(r.montant||0),0)
+  );
+  document.getElementById("kpi_mep").textContent=mep_statut_rows.length || mep_rows.length;
+  document.getElementById("kpi_mep_vol").textContent=fmtM(
+    mep_statut_rows.length ? volMepStatut : mep_rows.reduce((s,r)=>s+(r.montant||0),0)
+  );
 
   // Mise à jour des KPI par statut en temps réel
   renderKpiStatuts();
@@ -2357,10 +2422,12 @@ function openDosModal(id) {
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Statut actuel</div><div style="font-size:14px">${getStatutPill(r.statut_dossier || "depose")}</div></div>
   `;
 
-  // Pré-sélectionner le statut actuel
+  // Pré-sélectionner le statut actuel et les montants validés
   document.getElementById("dos_new_statut").value = r.statut_dossier || "depose";
   document.getElementById("dos_new_date").value = new Date().toISOString().split("T")[0];
   document.getElementById("dos_new_comment").value = "";
+  document.getElementById("dos_new_montant").value = r.montant_valide || "";
+  document.getElementById("dos_new_duree").value = r.duree_validee || "";
 
   // Historique des transitions
   renderDosHistorique(r.statut_historique || []);
@@ -2382,11 +2449,13 @@ function renderDosHistorique(historique) {
   const reversed = [...historique].reverse();
   container.innerHTML = reversed.map(h => {
     const s = STATUTS_DOSSIER[h.statut] || STATUTS_DOSSIER.depose;
+    const montantTxt = h.montant_valide ? `<div style="font-size:11px;color:var(--navy);font-weight:600;margin-top:3px">💰 Montant validé : ${fmtM(h.montant_valide)} FCFA</div>` : "";
     return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
       <div style="width:32px;height:32px;border-radius:50%;background:${s.bg};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${s.icon}</div>
       <div>
         <div style="font-size:13px;font-weight:600;color:var(--navy)">${s.l}</div>
         <div style="font-size:11px;color:var(--muted)">${fmtD(h.date)} · Par ${h.user}</div>
+        ${montantTxt}
         ${h.commentaire ? `<div style="font-size:11px;color:var(--text);margin-top:3px;font-style:italic">${h.commentaire}</div>` : ""}
       </div>
     </div>`;
@@ -2400,6 +2469,8 @@ async function saveStatutDossier() {
   const newStatut = document.getElementById("dos_new_statut").value;
   const newDate = document.getElementById("dos_new_date").value;
   const comment = document.getElementById("dos_new_comment").value.trim();
+  const newMontant = parseInt(document.getElementById("dos_new_montant").value) || null;
+  const newDuree = parseInt(document.getElementById("dos_new_duree").value) || null;
 
   if (newStatut === (r.statut_dossier || "depose") && !comment) {
     toast("Le statut est identique à l'actuel", "error"); return;
@@ -2410,10 +2481,20 @@ async function saveStatutDossier() {
     statut: newStatut,
     date: newDate || new Date().toISOString().split("T")[0],
     user: currentUser.nom,
-    commentaire: comment
+    commentaire: comment,
+    montant_valide: newMontant,
+    duree_validee: newDuree
   });
 
   try {
+    const patch = {
+      statut_dossier: newStatut,
+      statut_date: newDate ? newDate + "T00:00:00Z" : new Date().toISOString(),
+      statut_historique: historique
+    };
+    if (newMontant) patch.montant_valide = newMontant;
+    if (newDuree) patch.duree_validee = newDuree;
+
     const resp = await fetch(`${SB_URL}/rest/v1/dossiers?id=eq.${currentDosId}`, {
       method: "PATCH",
       headers: {
@@ -2422,11 +2503,7 @@ async function saveStatutDossier() {
         "Content-Type": "application/json",
         "Prefer": "return=minimal"
       },
-      body: JSON.stringify({
-        statut_dossier: newStatut,
-        statut_date: newDate ? newDate + "T00:00:00Z" : new Date().toISOString(),
-        statut_historique: historique
-      })
+      body: JSON.stringify(patch)
     });
 
     if (!resp.ok) {
@@ -2438,6 +2515,8 @@ async function saveStatutDossier() {
     r.statut_dossier = newStatut;
     r.statut_date = newDate;
     r.statut_historique = historique;
+    if (newMontant) r.montant_valide = newMontant;
+    if (newDuree) r.duree_validee = newDuree;
 
     renderDosHistorique(historique);
     renderDossiers();
