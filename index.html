@@ -326,6 +326,11 @@ tr:hover td{background:var(--navy-light);}
       </div>
       <button class="btn-primary" id="btn_deposes" onclick="saveRecord('deposes')">✅ Enregistrer le dossier</button>
     </div>
+    <div class="filter-bar" style="margin-top:16px">
+      <select id="dep_filter_sem" onchange="renderRecent('deposes')" style="font-size:12px;padding:8px 12px"><option value="">Toutes semaines</option></select>
+      <select id="dep_filter_mois" onchange="renderRecent('deposes')" style="font-size:12px;padding:8px 12px"><option value="">Tous les mois</option></select>
+      <button class="btn-export" id="dep_toggle_all" onclick="toggleDeposesAll()">👁 Voir tous les dossiers</button>
+    </div>
     <div id="recent-deposes"></div>
   </div>
 
@@ -384,7 +389,7 @@ tr:hover td{background:var(--navy-light);}
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
+        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th>Sous-étape</th><th></th></tr></thead>
         <tbody id="vue-exploit"></tbody>
       </table>
     </div>
@@ -503,6 +508,8 @@ tr:hover td{background:var(--navy-light);}
       <option value="vmep">Validé en attente</option>
       <option value="regul">MEP à régulariser</option>
       <option value="mep">MEP</option>
+      <option value="ajourne">Ajourné</option>
+      <option value="defavorable">Défavorable</option>
     </select>
     <select id="dos_filter_caf" onchange="renderDossiers()" style="font-size:12px;padding:8px 12px" class="manager-only">
       <option value="">Tous les CAF</option>
@@ -551,13 +558,15 @@ tr:hover td{background:var(--navy-light);}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div>
             <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Nouveau statut</label>
-            <select id="dos_new_statut" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
+            <select id="dos_new_statut" onchange="toggleDosSousStatut()" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
               <option value="depose">Déposé</option>
               <option value="exploit">À l'exploitation</option>
               <option value="risque">Au risque</option>
               <option value="vmep">Validé en attente</option>
               <option value="regul">MEP à régulariser</option>
               <option value="mep">MEP</option>
+              <option value="ajourne">Ajourné</option>
+              <option value="defavorable">Défavorable</option>
             </select>
           </div>
           <div>
@@ -565,13 +574,17 @@ tr:hover td{background:var(--navy-light);}
             <input type="date" id="dos_new_date" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
           </div>
         </div>
-        <div style="margin-top:10px">
-          <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Montant validé (FCFA) <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— si différent du montant demandé</span></label>
-          <input type="number" id="dos_new_montant" placeholder="Laisser vide pour conserver le montant initial" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
+        <div id="dos_sous_statut_wrap" style="display:none;margin-top:10px">
+          <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Sous-étape — niveau de validation</label>
+          <select id="dos_new_sous_statut" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
+            <option value="chef_agence">👤 Chef d'agence</option>
+            <option value="resp_commercial">🧑‍💼 Resp. Commercial</option>
+            <option value="dex">🏛️ DEX</option>
+          </select>
         </div>
         <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div>
-            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Montant validé (FCFA)</label>
+            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Montant validé (FCFA) <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— si différent</span></label>
             <input type="number" id="dos_new_montant" placeholder="Laisser vide = montant déposé" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
           </div>
           <div>
@@ -608,7 +621,7 @@ tr:hover td{background:var(--navy-light);}
   <!-- KPI statuts en temps réel -->
   <div id="dash_kpi_statuts" style="margin-bottom:20px">
     <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">📊 Répartition des dossiers par statut actuel</div>
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
       <div style="background:#E8EEF7;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('depose')">
         <div style="font-size:20px;font-weight:700;color:#1A3A7A" id="kpi_statut_depose">—</div>
         <div style="font-size:10px;color:#1A3A7A;font-weight:600;margin-top:3px">📥 Déposés</div>
@@ -632,6 +645,14 @@ tr:hover td{background:var(--navy-light);}
       <div style="background:#dcfce7;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('mep')">
         <div style="font-size:20px;font-weight:700;color:#15803d" id="kpi_statut_mep">—</div>
         <div style="font-size:10px;color:#15803d;font-weight:600;margin-top:3px">💰 MEP</div>
+      </div>
+      <div style="background:#f5f5f4;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('ajourne')">
+        <div style="font-size:20px;font-weight:700;color:#78716c" id="kpi_statut_ajourne">—</div>
+        <div style="font-size:10px;color:#78716c;font-weight:600;margin-top:3px">⏸️ Ajournés</div>
+      </div>
+      <div style="background:#fef2f2;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('defavorable')">
+        <div style="font-size:20px;font-weight:700;color:#CC0000" id="kpi_statut_defavorable">—</div>
+        <div style="font-size:10px;color:#CC0000;font-weight:600;margin-top:3px">❌ Défavorable</div>
       </div>
     </div>
   </div>
@@ -1293,8 +1314,9 @@ function renderVueModule(mod) {
   let list = allData.filter(r => r.mod === "deposes" && (r.statut_dossier || "depose") === statut);
   if (currentRole === "ca") list = list.filter(r => r.caf === currentUser.nom);
 
+  const colspan = mod === "exploit" ? 10 : 9;
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${colspan}"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
     return;
   }
 
@@ -1303,6 +1325,7 @@ function renderVueModule(mod) {
       ? `<strong style="color:var(--success)">${fmtM(r.montant_valide)}</strong>`
       : `<span style="color:var(--muted)">${fmtM(r.montant)}</span>`;
     const statutDate = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
+    const sousEtapeTd = mod === "exploit" ? `<td>${getSousStatutInline(r.sous_statut_exploit)}</td>` : "";
     return `<tr style="cursor:pointer" onclick="openDosModal(${r.id})">
       <td><strong>${r.nom || "—"}</strong></td>
       <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
@@ -1312,6 +1335,7 @@ function renderVueModule(mod) {
       <td>${montantAff}</td>
       <td style="font-size:11px">${statutDate}</td>
       <td style="font-size:11px">${r.semaine || "—"}</td>
+      ${sousEtapeTd}
       <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
     </tr>`;
   }).join("");
@@ -1326,6 +1350,7 @@ function showModule(mod, el) {
   // Modules avec formulaire de saisie : déposés, comité, pipeline
   const MODS_SAISIE = ["deposes", "comite", "pipeline"];
   if (MODS_SAISIE.includes(mod)) {
+    if (mod === "deposes") populateDepFilters();
     renderRecent(mod);
   } else {
     // Modules lecture seule (risque, exploit, vmep, mep, regul)
@@ -1366,6 +1391,7 @@ async function saveRecord(mod){
   try {
     await sbInsert(row);
     allData.unshift({...row,id:Date.now(),created_at:new Date().toISOString()});
+    if(mod==="deposes") populateDepFilters();
     renderRecent(mod);
     toast("Enregistré — "+nom);
     ["caf","date","code","nom","montant","duree","type","secteur","obs","comtype","stade","ref","deadline"].forEach(f=>{
@@ -1380,11 +1406,53 @@ async function saveRecord(mod){
 }
 
 // ====== RECENT ======
+let deposesShowAll = false;
+
+function toggleDeposesAll(){
+  deposesShowAll = !deposesShowAll;
+  const btn = document.getElementById("dep_toggle_all");
+  if(btn) btn.textContent = deposesShowAll ? "🔽 Afficher les 5 derniers" : "👁 Voir tous les dossiers";
+  renderRecent("deposes");
+}
+
+function populateDepFilters(){
+  const semSel = document.getElementById("dep_filter_sem");
+  const moisSel = document.getElementById("dep_filter_mois");
+  if(!semSel || !moisSel) return;
+  let rows = allData.filter(r=>r.mod==="deposes");
+  if(currentRole==="caf") rows = rows.filter(r=>r.caf===currentUser.nom);
+
+  const curSem = semSel.value;
+  const sems = [...new Set(rows.map(r=>r.semaine).filter(Boolean))].sort().reverse();
+  semSel.innerHTML = '<option value="">Toutes semaines</option>' + sems.map(s=>`<option${s===curSem?" selected":""}>${s}</option>`).join("");
+
+  const curMois = moisSel.value;
+  const mois = [...new Set(rows.map(r=>r.date&&r.date.split("T")[0].substring(0,7)).filter(Boolean))].sort().reverse();
+  moisSel.innerHTML = '<option value="">Tous les mois</option>' + mois.map(m=>{
+    const[y,mo]=m.split("-");
+    const label=new Date(y,mo-1,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+    return `<option value="${m}"${m===curMois?" selected":""}>${label}</option>`;
+  }).join("");
+}
+
 function renderRecent(mod){
   const c=document.getElementById("recent-"+mod);if(!c)return;
-  const rows=allData.filter(r=>r.mod===mod).slice(0,5);
+  let rows=allData.filter(r=>r.mod===mod);
+
+  if(mod==="deposes"){
+    if(currentRole==="caf") rows = rows.filter(r=>r.caf===currentUser.nom);
+    const sem = document.getElementById("dep_filter_sem")?.value || "";
+    const mois = document.getElementById("dep_filter_mois")?.value || "";
+    if(sem) rows = rows.filter(r=>r.semaine===sem);
+    if(mois) rows = rows.filter(r=>r.date && r.date.split("T")[0].startsWith(mois));
+    if(!deposesShowAll) rows = rows.slice(0,5);
+  } else {
+    rows = rows.slice(0,5);
+  }
+
   if(!rows.length){c.innerHTML='<div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun enregistrement</div></div>';return;}
-  c.innerHTML='<div class="table-wrap"><table><thead><tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Client</th><th>Type</th><th>Montant</th><th></th></tr></thead><tbody>'+
+  const countTxt = mod==="deposes" ? `<div style="font-size:11px;color:var(--muted);margin-bottom:6px">${rows.length} dossier${rows.length>1?"s":""} affiché${rows.length>1?"s":""}</div>` : "";
+  c.innerHTML=countTxt+'<div class="table-wrap"><table><thead><tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Client</th><th>Type</th><th>Montant</th><th></th></tr></thead><tbody>'+
     rows.map(r=>`<tr>
       <td><span style="font-size:10px;font-weight:700;color:var(--navy)">${r.semaine||"—"}</span></td>
       <td>${fmtD(r.date)}</td>
@@ -1402,6 +1470,7 @@ async function loadData(){
   try{
     allData=await sbGet();
     setStatus(true);
+    populateDepFilters();
     renderRecent("deposes");
     // Vérifier alertes CAF dès la connexion (managers uniquement)
     if(currentRole === "manager") renderAlertesCAF(allData);
@@ -2337,19 +2406,62 @@ function populateObjMois() {
   if(!cur) { sel.value=currentMois; renderObjectifs(); }
 }
 
+// ====== RÉALISATIONS MEP (pour objectifs) ======
+// Un dossier compte comme "réalisé" pour les objectifs dès que son statut de cycle de vie
+// est MEP ou MEP à régulariser (statut_dossier). Le mois retenu est celui du passage à ce
+// statut (statut_date), et le montant retenu est le montant validé s'il existe.
+// On garde aussi la compatibilité avec d'anciens enregistrements saisis directement dans
+// le module "mep" avant la mise en place du cycle de vie (mod === "mep").
+function getMepRows(mois, caf) {
+  let rows = allData.filter(r =>
+    r.mod === "deposes" &&
+    ["mep", "regul"].includes(r.statut_dossier) &&
+    r.statut_date && r.statut_date.split("T")[0].startsWith(mois)
+  ).map(r => ({...r, montant: r.montant_valide || r.montant}));
+
+  rows = rows.concat(allData.filter(r =>
+    r.mod === "mep" && r.date && r.date.split("T")[0].startsWith(mois)
+  ));
+
+  if (caf) rows = rows.filter(r => r.caf === caf);
+  return rows;
+}
+
 // ====== SUIVI DOSSIERS — CYCLE DE VIE ======
 
 const STATUTS_DOSSIER = {
-  depose:  { l: "Déposé",              icon: "📥", color: "#1A3A7A", bg: "#E8EEF7" },
-  exploit: { l: "À l'exploitation",    icon: "⚙️", color: "#92400e", bg: "#fffbeb" },
-  risque:  { l: "Au risque",           icon: "🔍", color: "#9d174d", bg: "#fce7f3" },
-  vmep:    { l: "Validé en attente",   icon: "✅", color: "#15803d", bg: "#f0fdf4" },
-  regul:   { l: "MEP à régulariser",   icon: "⏳", color: "#6b21a8", bg: "#f3e8ff" },
-  mep:     { l: "MEP",                 icon: "💰", color: "#15803d", bg: "#dcfce7" }
+  depose:      { l: "Déposé",              icon: "📥", color: "#1A3A7A", bg: "#E8EEF7" },
+  exploit:     { l: "À l'exploitation",    icon: "⚙️", color: "#92400e", bg: "#fffbeb" },
+  risque:      { l: "Au risque",           icon: "🔍", color: "#9d174d", bg: "#fce7f3" },
+  vmep:        { l: "Validé en attente",   icon: "✅", color: "#15803d", bg: "#f0fdf4" },
+  regul:       { l: "MEP à régulariser",   icon: "⏳", color: "#6b21a8", bg: "#f3e8ff" },
+  mep:         { l: "MEP",                 icon: "💰", color: "#15803d", bg: "#dcfce7" },
+  ajourne:     { l: "Ajourné",             icon: "⏸️", color: "#78716c", bg: "#f5f5f4" },
+  defavorable: { l: "Défavorable",         icon: "❌", color: "#CC0000", bg: "#fef2f2" }
 };
 
+// Sous-statuts (niveau de validation) au stade "À l'exploitation"
+const SOUS_STATUTS_EXPLOIT = {
+  chef_agence:      { l: "Chef d'agence",       icon: "👤" },
+  resp_commercial:  { l: "Resp. Commercial",    icon: "🧑‍💼" },
+  dex:              { l: "DEX",                 icon: "🏛️" }
+};
+
+function getSousStatutInline(key) {
+  const s = SOUS_STATUTS_EXPLOIT[key];
+  if (!s) return '<span style="color:var(--muted);font-size:11px">—</span>';
+  return `<span style="font-size:11px;font-weight:600;color:var(--navy)">${s.icon} ${s.l}</span>`;
+}
+
+function getSousStatutBadge(r) {
+  if (r.statut_dossier !== "exploit" || !r.sous_statut_exploit) return "";
+  const s = SOUS_STATUTS_EXPLOIT[r.sous_statut_exploit];
+  if (!s) return "";
+  return `<br><span style="font-size:10px;color:var(--muted)">${s.icon} ${s.l}</span>`;
+}
+
 // Ordre de priorité pour la migration (du plus avancé au moins avancé)
-const STATUT_PRIORITY = ["mep", "regul", "vmep", "risque", "exploit", "depose"];
+const STATUT_PRIORITY = ["mep", "regul", "vmep", "risque", "exploit", "ajourne", "defavorable", "depose"];
 
 function getStatutPill(statut) {
   const s = STATUTS_DOSSIER[statut] || STATUTS_DOSSIER.depose;
@@ -2389,7 +2501,7 @@ function renderDossiers() {
       <td style="font-size:11px">${r.caf}</td>
       <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
       <td class="amount">${fmtM(r.montant)}</td>
-      <td>${getStatutPill(statut)}</td>
+      <td>${getStatutPill(statut)}${getSousStatutBadge(r)}</td>
       <td style="font-size:11px">${statutDate}</td>
       <td style="font-size:11px">${r.semaine || "—"}</td>
       <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
@@ -2419,7 +2531,7 @@ function openDosModal(id) {
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Type</div><div style="font-size:14px;font-weight:600">${r.type || "—"}</div></div>
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Montant</div><div style="font-size:14px;font-weight:600">${fmtM(r.montant)} FCFA</div></div>
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Durée</div><div style="font-size:14px;font-weight:600">${r.duree || "—"} mois</div></div>
-    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Statut actuel</div><div style="font-size:14px">${getStatutPill(r.statut_dossier || "depose")}</div></div>
+    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Statut actuel</div><div style="font-size:14px">${getStatutPill(r.statut_dossier || "depose")}${r.statut_dossier === "exploit" && r.sous_statut_exploit ? " · " + getSousStatutInline(r.sous_statut_exploit) : ""}</div></div>
   `;
 
   // Pré-sélectionner le statut actuel et les montants validés
@@ -2428,6 +2540,8 @@ function openDosModal(id) {
   document.getElementById("dos_new_comment").value = "";
   document.getElementById("dos_new_montant").value = r.montant_valide || "";
   document.getElementById("dos_new_duree").value = r.duree_validee || "";
+  document.getElementById("dos_new_sous_statut").value = r.sous_statut_exploit || "chef_agence";
+  toggleDosSousStatut();
 
   // Historique des transitions
   renderDosHistorique(r.statut_historique || []);
@@ -2440,6 +2554,13 @@ function closeDosModal() {
   currentDosId = null;
 }
 
+function toggleDosSousStatut() {
+  const statut = document.getElementById("dos_new_statut").value;
+  const wrap = document.getElementById("dos_sous_statut_wrap");
+  if (!wrap) return;
+  wrap.style.display = statut === "exploit" ? "block" : "none";
+}
+
 function renderDosHistorique(historique) {
   const container = document.getElementById("dos_modal_histo");
   if (!historique.length) {
@@ -2450,11 +2571,13 @@ function renderDosHistorique(historique) {
   container.innerHTML = reversed.map(h => {
     const s = STATUTS_DOSSIER[h.statut] || STATUTS_DOSSIER.depose;
     const montantTxt = h.montant_valide ? `<div style="font-size:11px;color:var(--navy);font-weight:600;margin-top:3px">💰 Montant validé : ${fmtM(h.montant_valide)} FCFA</div>` : "";
+    const sousStatutTxt = h.sous_statut_exploit ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${getSousStatutInline(h.sous_statut_exploit)}</div>` : "";
     return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
       <div style="width:32px;height:32px;border-radius:50%;background:${s.bg};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${s.icon}</div>
       <div>
         <div style="font-size:13px;font-weight:600;color:var(--navy)">${s.l}</div>
         <div style="font-size:11px;color:var(--muted)">${fmtD(h.date)} · Par ${h.user}</div>
+        ${sousStatutTxt}
         ${montantTxt}
         ${h.commentaire ? `<div style="font-size:11px;color:var(--text);margin-top:3px;font-style:italic">${h.commentaire}</div>` : ""}
       </div>
@@ -2471,14 +2594,18 @@ async function saveStatutDossier() {
   const comment = document.getElementById("dos_new_comment").value.trim();
   const newMontant = parseInt(document.getElementById("dos_new_montant").value) || null;
   const newDuree = parseInt(document.getElementById("dos_new_duree").value) || null;
+  const newSousStatut = newStatut === "exploit" ? (document.getElementById("dos_new_sous_statut")?.value || "chef_agence") : null;
 
-  if (newStatut === (r.statut_dossier || "depose") && !comment) {
+  const sousStatutChanged = newStatut === "exploit" && newStatut === (r.statut_dossier || "depose") && newSousStatut !== (r.sous_statut_exploit || null);
+
+  if (newStatut === (r.statut_dossier || "depose") && !comment && !sousStatutChanged) {
     toast("Le statut est identique à l'actuel", "error"); return;
   }
 
   const historique = [...(r.statut_historique || [])];
   historique.push({
     statut: newStatut,
+    sous_statut_exploit: newSousStatut,
     date: newDate || new Date().toISOString().split("T")[0],
     user: currentUser.nom,
     commentaire: comment,
@@ -2490,7 +2617,8 @@ async function saveStatutDossier() {
     const patch = {
       statut_dossier: newStatut,
       statut_date: newDate ? newDate + "T00:00:00Z" : new Date().toISOString(),
-      statut_historique: historique
+      statut_historique: historique,
+      sous_statut_exploit: newSousStatut
     };
     if (newMontant) patch.montant_valide = newMontant;
     if (newDuree) patch.duree_validee = newDuree;
@@ -2515,6 +2643,7 @@ async function saveStatutDossier() {
     r.statut_dossier = newStatut;
     r.statut_date = newDate;
     r.statut_historique = historique;
+    r.sous_statut_exploit = newSousStatut;
     if (newMontant) r.montant_valide = newMontant;
     if (newDuree) r.duree_validee = newDuree;
 
@@ -2545,10 +2674,11 @@ function renderKpiStatuts() {
 function exportDossiers() {
   const list = getDossiersDeposes();
   if (!list.length) { toast("Aucun dossier", "error"); return; }
-  const headers = ["Client","Code","CAF","Type","Montant","Durée","Semaine","Statut","Date statut","Observations"];
+  const headers = ["Client","Code","CAF","Type","Montant","Durée","Semaine","Statut","Sous-étape","Date statut","Observations"];
   const rows = list.map(r => [
     r.nom, r.code, r.caf, r.type, r.montant, r.duree, r.semaine,
     STATUTS_DOSSIER[r.statut_dossier || "depose"]?.l || "Déposé",
+    r.statut_dossier === "exploit" ? (SOUS_STATUTS_EXPLOIT[r.sous_statut_exploit]?.l || "") : "",
     r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—",
     r.obs || ""
   ]);
@@ -2579,7 +2709,7 @@ async function renderObjectifsView() {
   try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
 
   const objectifs = await loadObjectifs(mois);
-  const meps = allData.filter(r => r.mod==="mep" && r.date && r.date.split("T")[0].startsWith(mois));
+  const meps = getMepRows(mois);
 
   const CAFS = [
     "OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou",
@@ -2747,7 +2877,7 @@ async function renderCAFObjectifs() {
     const CAFS = Object.keys(DEFAULT_OBJECTIFS);
     const tot_obj_nb = CAFS.reduce((s,c)=>(objectifs[c]||DEFAULT_OBJECTIFS[c]||{nb:0}).nb+s,0);
     const tot_obj_vol = CAFS.reduce((s,c)=>(objectifs[c]||DEFAULT_OBJECTIFS[c]||{vol:0}).vol+s,0);
-    mep_rows = allData.filter(r => r.mod==="mep" && r.date && r.date.split("T")[0].startsWith(mois));
+    mep_rows = getMepRows(mois);
     real_nb = mep_rows.length;
     real_vol = mep_rows.reduce((s,r)=>s+(r.montant||0),0);
     obj = {nb: tot_obj_nb, vol: tot_obj_vol};
@@ -2756,7 +2886,7 @@ async function renderCAFObjectifs() {
     // CAF : ses propres données
     const caf = currentUser.nom;
     obj = objectifs[caf] || DEFAULT_OBJECTIFS[caf] || {nb:0, vol:0};
-    mep_rows = allData.filter(r => r.mod==="mep" && r.date && r.date.split("T")[0].startsWith(mois) && r.caf===caf);
+    mep_rows = getMepRows(mois, caf);
     real_nb = mep_rows.length;
     real_vol = mep_rows.reduce((s,r)=>s+(r.montant||0),0);
     titre_detail = "Dossiers mis en place (MEP) ce mois";
