@@ -1894,18 +1894,23 @@ function buildSyntheseSheet(wb, data, sem) {
 
 function buildModuleSheet(wb, modKey, modLabel, rows) {
   const ws = {};
+  // Modules de statut : on distingue la date de dépôt d'origine (date) de la date
+  // d'atteinte du statut (statut_date), sinon les deux se confondent (cf. Synthèse détail).
+  const estModuleStatut = !!MOD_TO_STATUT[modKey];
   const fieldsMap = {
     deposes: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "secteur", "obs"],
     comite: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "comtype", "obs"],
-    risque: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "obs"],
-    exploit: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "obs"],
-    vmep: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "comtype", "obs"],
+    risque: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs"],
+    exploit: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs"],
+    vmep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "comtype", "obs"],
     pipeline: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "stade", "secteur", "obs"],
-    mep: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "ref", "obs"],
-    regul: ["semaine", "date", "caf", "code", "nom", "type", "montant", "ref", "obs", "deadline"]
+    mep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "ref", "obs"],
+    regul: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "ref", "obs", "deadline"]
   };
   const labelsMap = {
-    semaine: "Semaine", date: "Date", caf: "CAF", code: "Code Client", nom: "Client",
+    semaine: "Semaine", date: estModuleStatut ? "Date dépôt" : "Date",
+    statut_date: "Date " + (STATUTS_DOSSIER[MOD_TO_STATUT[modKey]]?.l || modLabel),
+    caf: "CAF", code: "Code Client", nom: "Client",
     type: "Type Crédit", montant: "Montant (FCFA)", duree: "Durée (mois)", secteur: "Secteur",
     obs: "Observations", comtype: "Comité", stade: "Stade", ref: "Référence", deadline: "Délai"
   };
@@ -1924,7 +1929,7 @@ function buildModuleSheet(wb, modKey, modLabel, rows) {
     const xlRow = headerRow + 1 + idx;
     fields.forEach((f, i) => {
       let val = r[f];
-      if (f === "date" || f === "deadline") val = val ? fmtD(val) : "";
+      if (f === "date" || f === "deadline" || f === "statut_date") val = val ? fmtD(val) : "";
       if (f === "montant") { val = val || 0; }
       const cellAddr = String.fromCharCode(65 + i) + xlRow;
       const cellStyle = xlStyleCell(false, idx % 2 === 0 ? XL.white : XL.lightGray);
