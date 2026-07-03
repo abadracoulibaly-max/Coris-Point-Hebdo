@@ -1721,7 +1721,17 @@ function showDetail(mod,sem){
   const rows=getRowsForMod(mod, mod==="deposes"?sem:null, null);
   const M=MODS[mod];
   if(!rows.length){document.getElementById("synthDetail").innerHTML=`<div class="empty-state"><div class="empty-icon">${M.i}</div><div class="empty-text">Aucune donnée</div></div>`;return;}
-  document.getElementById("synthDetail").innerHTML=`<div style="margin-top:20px"><div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:12px">${M.i} ${M.l} — ${rows.length} dossiers</div><div class="table-wrap"><table><thead><tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th></tr></thead><tbody>${rows.map(r=>`<tr><td><span style="font-size:10px;font-weight:700;color:var(--navy)">${r.semaine||"—"}</span></td><td>${fmtD(r.date)}</td><td style="font-size:11px">${r.caf||"—"}</td><td style="font-size:11px;color:var(--muted)">${r.code||"—"}</td><td><strong>${r.nom||"—"}</strong></td><td><span class="badge badge-${r.type}">${r.type||"—"}</span></td><td class="amount">${fmt(r.montant)}</td><td>${r.duree?r.duree+" mois":"—"}</td></tr>`).join("")}</tbody></table></div></div>`;
+  // Pour les modules de statut (risque/exploit/vmep/mep/regul), on distingue la date de
+  // dépôt d'origine de la date à laquelle le dossier a atteint ce statut (statut_date).
+  const statut = MOD_TO_STATUT[mod];
+  const dateStatutLabel = statut ? "Date "+(STATUTS_DOSSIER[statut]?.l || M.l) : null;
+  const headCols = statut
+    ? `<th>Semaine</th><th>Date dépôt</th><th>${dateStatutLabel}</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th>`
+    : `<th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th>`;
+  document.getElementById("synthDetail").innerHTML=`<div style="margin-top:20px"><div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:12px">${M.i} ${M.l} — ${rows.length} dossiers</div><div class="table-wrap"><table><thead><tr>${headCols}</tr></thead><tbody>${rows.map(r=>{
+    const dateStatutCell = statut ? `<td>${r.statut_date?fmtD(r.statut_date.split("T")[0]):"—"}</td>` : "";
+    return `<tr><td><span style="font-size:10px;font-weight:700;color:var(--navy)">${r.semaine||"—"}</span></td><td>${fmtD(r.date)}</td>${dateStatutCell}<td style="font-size:11px">${r.caf||"—"}</td><td style="font-size:11px;color:var(--muted)">${r.code||"—"}</td><td><strong>${r.nom||"—"}</strong></td><td><span class="badge badge-${r.type}">${r.type||"—"}</span></td><td class="amount">${fmt(r.montant)}</td><td>${r.duree?r.duree+" mois":"—"}</td></tr>`;
+  }).join("")}</tbody></table></div></div>`;
 }
 
 // ====== EXPORTS ======
