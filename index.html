@@ -780,7 +780,7 @@ tr:hover td{background:var(--navy-light);}
   <div class="kpi-row">
     <div class="kpi-card"><div class="kpi-label">Dossiers déposés</div><div class="kpi-value" id="ana_dep">—</div><div class="kpi-sub">total</div></div>
     <div class="kpi-card blue"><div class="kpi-label">Dossiers MEP</div><div class="kpi-value" id="ana_mep">—</div><div class="kpi-sub">mis en place</div></div>
-    <div class="kpi-card gold"><div class="kpi-label">Taux transformation</div><div class="kpi-value" id="ana_taux">—</div><div class="kpi-sub">dépôt → MEP</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">MEP du mois / Objectif</div><div class="kpi-value" id="ana_taux">—</div><div class="kpi-sub" id="ana_taux_sub">vs objectif</div></div>
     <div class="kpi-card red"><div class="kpi-label">Dossiers bloqués</div><div class="kpi-value" id="ana_bloq">—</div><div class="kpi-sub">&gt; 14 jours</div></div>
   </div>
   <div style="margin-bottom:20px">
@@ -790,10 +790,24 @@ tr:hover td{background:var(--navy-light);}
       <tbody id="ana_blocage"></tbody>
     </table></div>
   </div>
+  <!-- DEPOSE VS PREVISION COMITE -->
+  <div style="margin-bottom:20px">
+    <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:12px">📋 Déposés vs Prévision Comité</div>
+    <div class="kpi-row" style="margin-bottom:12px">
+      <div class="kpi-card"><div class="kpi-label">Prévision Comité</div><div class="kpi-value" id="ana_com_prevu">—</div><div class="kpi-sub" id="ana_com_prevu_vol">—</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">Déposés</div><div class="kpi-value" id="ana_com_realise">—</div><div class="kpi-sub" id="ana_com_realise_vol">—</div></div>
+      <div class="kpi-card gold"><div class="kpi-label">Taux de réalisation</div><div class="kpi-value" id="ana_com_taux">—</div><div class="kpi-sub">déposés / prévus</div></div>
+      <div class="kpi-card" id="ana_com_ecart_card"><div class="kpi-label">Écart</div><div class="kpi-value" id="ana_com_ecart">—</div><div class="kpi-sub">nombre de dossiers</div></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>CAF</th><th>Prévu</th><th>Vol. prévu</th><th>Déposé</th><th>Vol. déposé</th><th>Écart</th><th>% Réalisation</th><th>Statut</th></tr></thead>
+      <tbody id="ana_com_table"></tbody>
+    </table></div>
+  </div>
   <!-- OBJECTIFS -->
   <div style="margin-bottom:20px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div style="font-size:15px;font-weight:700;color:var(--navy)">🎯 Objectifs vs Réalisé — Dossiers Déposés</div>
+      <div style="font-size:15px;font-weight:700;color:var(--navy)">🎯 Objectifs vs Réalisé — MEP du mois</div>
       <div id="obj_edit_btn"></div>
     </div>
     <div class="filter-bar" style="margin-bottom:12px">
@@ -863,7 +877,7 @@ tr:hover td{background:var(--navy-light);}
 const SB_URL = "https://sdwrmdkldnyfgwnmryqd.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd3JtZGtsZG55Zmd3bm1yeXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDMwNTMsImV4cCI6MjA5ODMxOTA1M30.UO8e15d8qqj0r79ENmFufA7zzpxu-8_1V5llocHpdW8";
 
-const MODS = {deposes:{l:"Déposés",i:"📥"},comite:{l:"Comité",i:"📋"},risque:{l:"Risque",i:"🔍"},exploit:{l:"Exploitation",i:"⚙️"},vmep:{l:"Validés Non MEP",i:"✅"},pipeline:{l:"Pipeline",i:"🔄"},mep:{l:"MEP",i:"💰"},regul:{l:"Régularisation",i:"⏳"}};
+const MODS = {deposes:{l:"Déposés",i:"📥"},comite:{l:"Prévision Comité",i:"📋"},risque:{l:"Risque",i:"🔍"},exploit:{l:"Exploitation",i:"⚙️"},vmep:{l:"Validés Non MEP",i:"✅"},pipeline:{l:"Pipeline",i:"🔄"},mep:{l:"MEP du mois",i:"💰"},regul:{l:"Régularisation",i:"⏳"}};
 const PFX = {deposes:"d",comite:"c",risque:"r",exploit:"e",vmep:"v",pipeline:"p",mep:"m",regul:"g"};
 
 let allData = [];
@@ -1708,7 +1722,10 @@ async function renderSynthese(){
   // La semaine ne filtre que "Déposés" (combien déposés cette semaine).
   // Tous les autres modules montrent tout le pipeline actuel, quelle que soit
   // la semaine de dépôt d'origine.
-  const flt=m=>getRowsForMod(m, m==="deposes"?sem:null, null);
+  const flt=m=>{
+    const rows=getRowsForMod(m, m==="deposes"?sem:null, null);
+    return m==="mep" ? filterMoisEnCours(rows) : rows;
+  };
   document.getElementById("synthGrid").innerHTML=Object.entries(MODS).map(([mod,M])=>{
     const rows=flt(mod);
     const vol=rows.reduce((s,r)=>s+(r.montant||0),0);
@@ -1718,7 +1735,8 @@ async function renderSynthese(){
 }
 
 function showDetail(mod,sem){
-  const rows=getRowsForMod(mod, mod==="deposes"?sem:null, null);
+  let rows=getRowsForMod(mod, mod==="deposes"?sem:null, null);
+  if (mod==="mep") rows=filterMoisEnCours(rows);
   const M=MODS[mod];
   if(!rows.length){document.getElementById("synthDetail").innerHTML=`<div class="empty-state"><div class="empty-icon">${M.i}</div><div class="empty-text">Aucune donnée</div></div>`;return;}
   // Pour les modules de statut (risque/exploit/vmep/mep/regul), on distingue la date de
@@ -1791,7 +1809,9 @@ function getFilteredExportData(sem) {
   Object.keys(MODS).forEach(mod => {
     // Cohérent avec Synthèse : seul Déposés est filtré par semaine (combien déposés
     // cette semaine). Les autres montrent tout le pipeline actuel à date d'export.
-    result[mod] = getRowsForMod(mod, mod==="deposes"?sem:null, null);
+    let rows = getRowsForMod(mod, mod==="deposes"?sem:null, null);
+    if (mod === "mep") rows = filterMoisEnCours(rows);
+    result[mod] = rows;
   });
   return result;
 }
@@ -1836,7 +1856,7 @@ function buildSyntheseSheet(wb, data, sem) {
 
   const kpis = [
     { label: "DOSSIERS DÉPOSÉS", value: deposes.length, sub: fmtM(volDep), color: XL.navy },
-    { label: "MEP RÉALISÉES", value: meps.length, sub: fmtM(volMep), color: XL.green },
+    { label: "MEP DU MOIS", value: meps.length, sub: fmtM(volMep), color: XL.green },
     { label: "TAUX TRANSFORMATION", value: tauxTransfo + "%", sub: tauxTransfo > 100 ? "MEP incluant dossiers antérieurs" : "dépôt → MEP", color: tauxTransfo >= 50 ? XL.green : XL.amber },
     { label: "VALIDÉS NON MEP", value: vmep.length, sub: "en attente", color: XL.gold },
     { label: "EN ANALYSE", value: risque.length + exploit.length, sub: "risque+exploit", color: XL.blue },
@@ -2047,10 +2067,6 @@ async function exportRapportPro() {
       buildModuleSheet(wb, mod, MODS[mod].l, data[mod] || []);
     });
 
-    // 2bis. Feuille dédiée MEP du mois en cours (prête pour la présentation CODIR,
-    // sans filtrage manuel a posteriori)
-    buildModuleSheet(wb, "mep", "MEP du mois en cours", filterMoisEnCours(data.mep || []));
-
     // 3. Feuille TCD (basée sur Déposés)
     buildTCDSheet(wb, data.deposes || []);
 
@@ -2180,7 +2196,7 @@ function renderAlertesCAF(data) {
       const saisies = data.filter(r => r.caf === s.caf && r.created_at);
       saisies.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
       const dernierMod = saisies.length ? saisies[0].mod : "—";
-      const MODS = {deposes:"Déposés",comite:"Comité",risque:"Risque",exploit:"Exploitation",vmep:"Validé VMEP",pipeline:"Pipeline",mep:"MEP",regul:"Régularisation"};
+      const MODS = {deposes:"Déposés",comite:"Prévision Comité",risque:"Risque",exploit:"Exploitation",vmep:"Validés Non MEP",pipeline:"Pipeline",mep:"MEP du mois",regul:"Régularisation"};
 
       return `<tr style="background:${bg}">
         <td style="font-weight:700;font-size:12px">${s.caf}</td>
@@ -2216,7 +2232,6 @@ async function renderAnalyse(){
   const flt=mod=>getRowsForMod(mod,sem,null).filter(r=>!mois||(r.date&&r.date.startsWith(mois)));
   const deposes=flt("deposes"),meps=flt("mep"),risque=flt("risque"),exploit=flt("exploit"),vmep=flt("vmep"),regul=flt("regul");
   const today=new Date();
-  const taux=deposes.length?Math.round((meps.length/deposes.length)*100):0;
 
   const bloques=[...risque,...exploit,...vmep,...regul].map(r=>{
     const j=Math.floor((today-new Date(r.date||r.created_at))/(1000*60*60*24));
@@ -2227,8 +2242,17 @@ async function renderAnalyse(){
   const vol_mep=meps.reduce((s,r)=>s+(r.montant||0),0);
   document.getElementById("ana_dep").textContent=deposes.length+" | "+fmtM(vol_dep);
   document.getElementById("ana_mep").textContent=meps.length+" | "+fmtM(vol_mep);
-  document.getElementById("ana_taux").textContent=taux+"%";
-  document.getElementById("ana_taux").style.color=taux>=50?"#16a34a":taux>=30?"#f59e0b":"#CC0000";
+
+  // MEP du mois / Objectif (mois sélectionné, sinon mois calendaire en cours)
+  const moisObj = mois || new Date().toISOString().slice(0,7);
+  const objMap = await loadObjectifs(moisObj);
+  const mepMoisRows = getMepRows(moisObj);
+  const totalObjVol = Object.values(objMap).reduce((s,o)=>s+(o.vol||0),0);
+  const totalMepVol = mepMoisRows.reduce((s,r)=>s+(r.montant||0),0);
+  const pctMepObj = totalObjVol ? Math.round((totalMepVol/totalObjVol)*100) : 0;
+  document.getElementById("ana_taux").textContent=pctMepObj+"%";
+  document.getElementById("ana_taux").style.color=pctMepObj>=100?"#16a34a":pctMepObj>=70?"#f59e0b":"#CC0000";
+  document.getElementById("ana_taux_sub").textContent=fmtM(totalMepVol)+" / "+fmtM(totalObjVol);
   // Compter critiques selon seuils par module
   const critiques = bloques.filter(r=>{
     const seuil = r._etat==="risque"?5:r._etat==="exploit"?3:14;
@@ -2250,7 +2274,7 @@ async function renderAnalyse(){
     }).join("");
   }
 
-  const CAFS=["OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou","KONÉ Mohamed","BAMBA Bassirou","CISSÉ David","COULIBALY Marie-Edwige","GOLI Cédric","KPADJIRO Michel","KANGA Jodel","YAO Armel","KOUADIO Marie Ange","KAMAGATE Ali","COMPAO RÉ Aïda","SORO Felicité","DJÈ Jean Charles","DRAMAN Jean Michel","YOUL Sansan","NIKIEMA Bénédicte","KOUACOU Claire","TIA Natacha","KAMATÉ Tahibatou"];
+  const CAFS=["OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou","KONÉ Mohamed","BAMBA Bassirou","CISSÉ David","COULIBALY Marie-Edwige","GOLI Cédric","KPADJIRO Michel","KANGA Jodel","YAO Armel","KOUADIO Marie Ange","KAMAGATE Ali","COMPAORÉ Aïda","SORO Felicité","DJÈ Jean Charles","DRAMAN Jean Michel","YOUL Sansan","NIKIEMA Bénédicte","KOUACOU Claire","TIA Natacha","KAMATÉ Tahibatou"];
   const transfos=CAFS.map(caf=>{
     const d=deposes.filter(r=>r.caf===caf).length;
     const a=risque.filter(r=>r.caf===caf).length+exploit.filter(r=>r.caf===caf).length;
@@ -2267,6 +2291,57 @@ async function renderAnalyse(){
       const c=r.t>=50?"#16a34a":r.t>=30?"#f59e0b":"#CC0000";
       const p=r.t>=50?"Bon":r.t>=30?"Moyen":"Faible";
       return `<tr><td style="font-weight:600;font-size:12px">${r.caf}</td><td style="text-align:center;font-weight:700">${r.d}</td><td style="text-align:center">${r.a}</td><td style="text-align:center">${r.v}</td><td style="text-align:center;font-weight:700;color:var(--success)">${r.m}</td><td style="text-align:center"><span style="font-weight:700;color:${c};font-size:14px">${r.t}%</span><div style="background:var(--border);border-radius:4px;height:5px;margin-top:4px"><div style="width:${r.t}%;background:${c};border-radius:4px;height:5px"></div></div></td><td style="font-weight:600;color:${c}">${p}</td></tr>`;
+    }).join("");
+  }
+
+  // Déposés vs Prévision Comité (semaine sélectionnée, sinon semaine calendaire en cours)
+  const semCom = sem || getWeek(new Date().toISOString().split("T")[0]);
+  const prevusCom = allData.filter(r=>r.mod==="comite"&&(r.semaine===semCom||(r.date&&getWeek(r.date.split("T")[0])===semCom)));
+  const deposesCom = allData.filter(r=>r.mod==="deposes"&&(r.semaine===semCom||(r.date&&getWeek(r.date.split("T")[0])===semCom)));
+
+  const comData = CAFS.map(caf=>{
+    const p = prevusCom.filter(r=>r.caf===caf);
+    const d = deposesCom.filter(r=>r.caf===caf);
+    const nb_prevu=p.length, nb_realise=d.length;
+    const vol_prevu=p.reduce((s,r)=>s+(r.montant||0),0), vol_realise=d.reduce((s,r)=>s+(r.montant||0),0);
+    const ecart=nb_realise-nb_prevu;
+    const pct = nb_prevu ? Math.round((nb_realise/nb_prevu)*100) : (nb_realise>0?100:0);
+    return {caf,nb_prevu,nb_realise,vol_prevu,vol_realise,ecart,pct};
+  }).filter(r=>r.nb_prevu>0||r.nb_realise>0);
+
+  const totPrevu=comData.reduce((s,r)=>s+r.nb_prevu,0);
+  const totRealise=comData.reduce((s,r)=>s+r.nb_realise,0);
+  const totVolPrevu=comData.reduce((s,r)=>s+r.vol_prevu,0);
+  const totVolRealise=comData.reduce((s,r)=>s+r.vol_realise,0);
+  const totEcart=totRealise-totPrevu;
+  const totPct=totPrevu?Math.round((totRealise/totPrevu)*100):0;
+
+  document.getElementById("ana_com_prevu").textContent=totPrevu;
+  document.getElementById("ana_com_prevu_vol").textContent=fmtM(totVolPrevu);
+  document.getElementById("ana_com_realise").textContent=totRealise;
+  document.getElementById("ana_com_realise_vol").textContent=fmtM(totVolRealise);
+  document.getElementById("ana_com_taux").textContent=totPct+"%";
+  document.getElementById("ana_com_taux").style.color=totPct>=100?"#16a34a":totPct>=70?"#f59e0b":"#CC0000";
+  document.getElementById("ana_com_ecart").textContent=(totEcart>=0?"+":"")+totEcart;
+  document.getElementById("ana_com_ecart").style.color=totEcart>=0?"#16a34a":"#CC0000";
+  document.getElementById("ana_com_ecart_card").style.borderTopColor=totEcart>=0?"#16a34a":"#CC0000";
+
+  if(!comData.length){
+    document.getElementById("ana_com_table").innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Aucune donnée pour '+semCom+'</div></div></td></tr>';
+  } else {
+    document.getElementById("ana_com_table").innerHTML=comData.sort((a,b)=>b.pct-a.pct).map(r=>{
+      const c=r.pct>=100?"#16a34a":r.pct>=70?"#f59e0b":"#CC0000";
+      const statut = r.nb_prevu===0?'<span style="color:var(--muted);font-size:11px">Non planifié</span>':r.nb_realise===0?'<span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">Aucun dépôt</span>':r.pct>=100?'<span style="background:#f0fdf4;color:#15803d;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">Conforme</span>':'<span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">En retard</span>';
+      return `<tr>
+        <td style="font-weight:600;font-size:12px">${r.caf}</td>
+        <td style="text-align:center">${r.nb_prevu||"—"}</td>
+        <td style="text-align:right" class="amount">${r.vol_prevu?fmtM(r.vol_prevu):"—"}</td>
+        <td style="text-align:center;font-weight:700">${r.nb_realise}</td>
+        <td style="text-align:right;font-weight:700" class="amount">${fmtM(r.vol_realise)}</td>
+        <td style="text-align:center;font-weight:700;color:${r.ecart>=0?"#16a34a":"#CC0000"}">${r.ecart>=0?"+":""}${r.ecart}</td>
+        <td style="text-align:center"><span style="font-weight:700;color:${c}">${r.pct}%</span></td>
+        <td>${statut}</td>
+      </tr>`;
     }).join("");
   }
 }
@@ -2309,9 +2384,10 @@ async function renderObjectifs() {
     return;
   }
 
-  // Charger objectifs et données réelles
+  // Charger objectifs et données réelles (réalisé = MEP du mois, cf. règle métier : statut_dossier
+  // IN ('mep','regul'), pas les simples dépôts — voir getMepRows())
   const objectifs = await loadObjectifs(mois);
-  const deposes = allData.filter(r => r.mod==="deposes" && r.date && r.date.split("T")[0].startsWith(mois));
+  const meps = getMepRows(mois);
 
   // Bouton modifier (managers seulement)
   const editBtn = document.getElementById("obj_edit_btn");
@@ -2324,7 +2400,7 @@ async function renderObjectifs() {
   const CAFS = Object.keys(DEFAULT_OBJECTIFS);
   const rows = CAFS.map(caf => {
     const obj = objectifs[caf] || DEFAULT_OBJECTIFS[caf];
-    const real_rows = deposes.filter(r => r.caf === caf);
+    const real_rows = meps.filter(r => r.caf === caf);
     const real_nb = real_rows.length;
     const real_vol = real_rows.reduce((s,r) => s+(r.montant||0), 0);
     const pct_nb = obj.nb ? Math.round((real_nb/obj.nb)*100) : 0;
