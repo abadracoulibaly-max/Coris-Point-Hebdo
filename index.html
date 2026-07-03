@@ -739,6 +739,7 @@ tr:hover td{background:var(--navy-light);}
     <div class="kpi-card"><div class="kpi-label">Objectif total nbre</div><div class="kpi-value" id="obj_tot_nb">—</div><div class="kpi-sub">somme CAF</div></div>
     <div class="kpi-card blue"><div class="kpi-label">Objectif total volume</div><div class="kpi-value" id="obj_tot_vol">—</div><div class="kpi-sub">somme CAF</div></div>
     <div class="kpi-card gold"><div class="kpi-label">MEP réalisé nbre</div><div class="kpi-value" id="obj_real_nb">—</div><div class="kpi-sub">ce mois</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">MEP réalisé volume</div><div class="kpi-value" id="obj_real_vol">—</div><div class="kpi-sub">ce mois</div></div>
     <div class="kpi-card" id="obj_global_card"><div class="kpi-label">Taux global</div><div class="kpi-value" id="obj_global_taux">—</div><div class="kpi-sub">MEP vs objectif</div></div>
   </div>
 
@@ -2858,7 +2859,8 @@ async function renderObjectifsView() {
 
   document.getElementById("obj_tot_nb").textContent = tot_obj_nb;
   document.getElementById("obj_tot_vol").textContent = fmtM(tot_obj_vol);
-  document.getElementById("obj_real_nb").textContent = tot_real_nb+" | "+fmtM(tot_real_vol);
+  document.getElementById("obj_real_nb").textContent = tot_real_nb;
+  document.getElementById("obj_real_vol").textContent = fmtM(tot_real_vol);
   document.getElementById("obj_global_taux").textContent = taux_global+"%";
   document.getElementById("obj_global_taux").style.color = color_global;
   document.getElementById("obj_global_card").style.borderTopColor = color_global;
