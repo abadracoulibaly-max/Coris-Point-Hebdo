@@ -1719,11 +1719,11 @@ async function renderSynthese(){
   const synSel=document.getElementById("syn_sem");
   const cur=synSel.value;
   synSel.innerHTML='<option value="">Toutes semaines</option>'+sems.map(s=>`<option${s===cur?" selected":""}>${s}</option>`).join("");
-  // La semaine ne filtre que "Déposés" (combien déposés cette semaine).
-  // Tous les autres modules montrent tout le pipeline actuel, quelle que soit
-  // la semaine de dépôt d'origine.
+  // La semaine filtre les modules de planning (Déposés, Prévision Comité, Pipeline :
+  // "combien prévu/déposé cette semaine"). Les modules de statut (risque/exploit/
+  // vmep/mep/regul) montrent tout le pipeline actuel, quel que soit le moment du dépôt.
   const flt=m=>{
-    const rows=getRowsForMod(m, m==="deposes"?sem:null, null);
+    const rows=getRowsForMod(m, MOD_TO_STATUT[m]?null:sem, null);
     return m==="mep" ? filterMoisEnCours(rows) : rows;
   };
   document.getElementById("synthGrid").innerHTML=Object.entries(MODS).map(([mod,M])=>{
@@ -1735,7 +1735,7 @@ async function renderSynthese(){
 }
 
 function showDetail(mod,sem){
-  let rows=getRowsForMod(mod, mod==="deposes"?sem:null, null);
+  let rows=getRowsForMod(mod, MOD_TO_STATUT[mod]?null:sem, null);
   if (mod==="mep") rows=filterMoisEnCours(rows);
   const M=MODS[mod];
   if(!rows.length){document.getElementById("synthDetail").innerHTML=`<div class="empty-state"><div class="empty-icon">${M.i}</div><div class="empty-text">Aucune donnée</div></div>`;return;}
@@ -1807,9 +1807,9 @@ function xlStyleKPIValue(color = XL.navy) {
 function getFilteredExportData(sem) {
   const result = {};
   Object.keys(MODS).forEach(mod => {
-    // Cohérent avec Synthèse : seul Déposés est filtré par semaine (combien déposés
-    // cette semaine). Les autres montrent tout le pipeline actuel à date d'export.
-    let rows = getRowsForMod(mod, mod==="deposes"?sem:null, null);
+    // Cohérent avec Synthèse : la semaine filtre les modules de planning (Déposés,
+    // Prévision Comité, Pipeline). Les modules de statut montrent tout le pipeline actuel.
+    let rows = getRowsForMod(mod, MOD_TO_STATUT[mod]?null:sem, null);
     if (mod === "mep") rows = filterMoisEnCours(rows);
     result[mod] = rows;
   });
