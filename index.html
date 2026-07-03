@@ -1789,9 +1789,21 @@ function xlStyleKPIValue(color = XL.navy) {
 function getFilteredExportData(sem) {
   const result = {};
   Object.keys(MODS).forEach(mod => {
-    result[mod] = getRowsForMod(mod, sem, null);
+    // Cohérent avec Synthèse : seul Déposés est filtré par semaine (combien déposés
+    // cette semaine). Les autres montrent tout le pipeline actuel à date d'export.
+    result[mod] = getRowsForMod(mod, mod==="deposes"?sem:null, null);
   });
   return result;
+}
+
+// Sous-ensemble d'un module filtré sur le mois calendaire en cours,
+// en se basant sur statut_date (date d'atteinte du statut) et à défaut sur date (dossiers hérités anciens).
+function filterMoisEnCours(rows) {
+  const mois = new Date().toISOString().slice(0,7);
+  return rows.filter(r => {
+    const d = (r.statut_date || r.date || "").split("T")[0];
+    return d.startsWith(mois);
+  });
 }
 
 function buildSyntheseSheet(wb, data, sem) {
@@ -2029,6 +2041,10 @@ async function exportRapportPro() {
     moduleOrder.forEach(mod => {
       buildModuleSheet(wb, mod, MODS[mod].l, data[mod] || []);
     });
+
+    // 2bis. Feuille dédiée MEP du mois en cours (prête pour la présentation CODIR,
+    // sans filtrage manuel a posteriori)
+    buildModuleSheet(wb, "mep", "MEP du mois en cours", filterMoisEnCours(data.mep || []));
 
     // 3. Feuille TCD (basée sur Déposés)
     buildTCDSheet(wb, data.deposes || []);
