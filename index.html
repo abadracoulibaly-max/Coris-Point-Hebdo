@@ -1306,6 +1306,26 @@ const MOD_TO_STATUT = {
   regul: "regul"
 };
 
+// Récupère les dossiers d'un "état" (risque/exploit/vmep/mep/regul) en combinant :
+// - les dossiers mod="deposes" dont statut_dossier correspond (nouveau système, cf. CLAUDE.md)
+// - les dossiers hérités dont mod correspond directement (ancien système, avant le cycle de vie par statut)
+// Chaque ligne reçoit un champ _etat pour identifier son groupe logique, car r.mod seul ne suffit plus.
+// Pour les modules de saisie sans statut équivalent (deposes/comite/pipeline), retombe sur le filtre mod classique.
+function getRowsForMod(mod, sem, caf) {
+  const statut = MOD_TO_STATUT[mod];
+  let rows;
+  if (statut) {
+    rows = allData.filter(r => r.mod === "deposes" && r.statut_dossier === statut)
+      .map(r => ({...r, montant: r.montant_valide || r.montant, _etat: mod}))
+      .concat(allData.filter(r => r.mod === mod).map(r => ({...r, _etat: mod})));
+  } else {
+    rows = allData.filter(r => r.mod === mod).map(r => ({...r, _etat: mod}));
+  }
+  if (sem) rows = rows.filter(r => r.semaine === sem);
+  if (caf) rows = rows.filter(r => r.caf === caf);
+  return rows;
+}
+
 function renderVueModule(mod) {
   const statut = MOD_TO_STATUT[mod];
   const tbody = document.getElementById("vue-" + mod);
@@ -1504,46 +1524,23 @@ async function renderDashboard(){
 
   const flt=(m,s,c)=>allData.filter(r=>r.mod===m&&(!s||r.semaine===s)&&(!c||r.caf===c));
   const dep_rows=flt("deposes",sem,caf);
-  const ana_rows=[...flt("risque",sem,caf),...flt("exploit",sem,caf)];
-  const vmep_rows=flt("vmep",sem,caf);
-  const mep_rows=flt("mep",sem,caf);
-
-  // KPI MEP : utiliser les dossiers Déposés avec statut_dossier=mep (montant_valide prioritaire)
-  const mep_statut_rows = allData.filter(r =>
-    r.mod === "deposes" &&
-    (r.statut_dossier === "mep") &&
-    (!caf || r.caf === caf) &&
-    (!sem || r.semaine === sem)
-  );
-  const volMepStatut = mep_statut_rows.reduce((s,r) => s + (r.montant_valide || r.montant || 0), 0);
-
-  // KPI VMEP : dossiers Déposés avec statut vmep ou regul (montant_valide prioritaire)
-  const vmep_statut_rows = allData.filter(r =>
-    r.mod === "deposes" &&
-    (r.statut_dossier === "vmep" || r.statut_dossier === "regul") &&
-    (!caf || r.caf === caf) &&
-    (!sem || r.semaine === sem)
-  );
+  const ana_rows=[...getRowsForMod("risque",sem,caf),...getRowsForMod("exploit",sem,caf)];
+  const vmep_rows=[...getRowsForMod("vmep",sem,caf),...getRowsForMod("regul",sem,caf)];
+  const mep_rows=getRowsForMod("mep",sem,caf);
 
   document.getElementById("kpi_dep").textContent=dep_rows.length;
   document.getElementById("kpi_dep_vol").textContent=fmtM(dep_rows.reduce((s,r)=>s+(r.montant||0),0));
   document.getElementById("kpi_ana").textContent=ana_rows.length;
   document.getElementById("kpi_ana_vol").textContent=fmtM(ana_rows.reduce((s,r)=>s+(r.montant||0),0));
-  document.getElementById("kpi_vmep").textContent=vmep_statut_rows.length || vmep_rows.length;
-  document.getElementById("kpi_vmep_vol").textContent=fmtM(
-    vmep_statut_rows.length
-      ? vmep_statut_rows.reduce((s,r)=>s+(r.montant_valide||r.montant||0),0)
-      : vmep_rows.reduce((s,r)=>s+(r.montant||0),0)
-  );
-  document.getElementById("kpi_mep").textContent=mep_statut_rows.length || mep_rows.length;
-  document.getElementById("kpi_mep_vol").textContent=fmtM(
-    mep_statut_rows.length ? volMepStatut : mep_rows.reduce((s,r)=>s+(r.montant||0),0)
-  );
+  document.getElementById("kpi_vmep").textContent=vmep_rows.length;
+  document.getElementById("kpi_vmep_vol").textContent=fmtM(vmep_rows.reduce((s,r)=>s+(r.montant||0),0));
+  document.getElementById("kpi_mep").textContent=mep_rows.length;
+  document.getElementById("kpi_mep_vol").textContent=fmtM(mep_rows.reduce((s,r)=>s+(r.montant||0),0));
 
   // Mise à jour des KPI par statut en temps réel
   renderKpiStatuts();
 
-  const rows=flt(mod,sem,caf);
+  const rows=getRowsForMod(mod,sem,caf);
   document.getElementById("dashHead").innerHTML="<tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th><th>Obs.</th><th></th></tr>";
   if(!rows.length){document.getElementById("dashBody").innerHTML='<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">Aucune donnée</div></div></td></tr>';return;}
   document.getElementById("dashBody").innerHTML=rows.map(r=>`<tr>
@@ -1699,7 +1696,7 @@ async function renderSynthese(){
   const synSel=document.getElementById("syn_sem");
   const cur=synSel.value;
   synSel.innerHTML='<option value="">Toutes semaines</option>'+sems.map(s=>`<option${s===cur?" selected":""}>${s}</option>`).join("");
-  const flt=m=>allData.filter(r=>r.mod===m&&(!sem||r.semaine===sem));
+  const flt=m=>getRowsForMod(m,sem,null);
   document.getElementById("synthGrid").innerHTML=Object.entries(MODS).map(([mod,M])=>{
     const rows=flt(mod);
     const vol=rows.reduce((s,r)=>s+(r.montant||0),0);
@@ -1709,7 +1706,7 @@ async function renderSynthese(){
 }
 
 function showDetail(mod,sem){
-  const rows=allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem));
+  const rows=getRowsForMod(mod,sem,null);
   const M=MODS[mod];
   if(!rows.length){document.getElementById("synthDetail").innerHTML=`<div class="empty-state"><div class="empty-icon">${M.i}</div><div class="empty-text">Aucune donnée</div></div>`;return;}
   document.getElementById("synthDetail").innerHTML=`<div style="margin-top:20px"><div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:12px">${M.i} ${M.l} — ${rows.length} dossiers</div><div class="table-wrap"><table><thead><tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th></tr></thead><tbody>${rows.map(r=>`<tr><td><span style="font-size:10px;font-weight:700;color:var(--navy)">${r.semaine||"—"}</span></td><td>${fmtD(r.date)}</td><td style="font-size:11px">${r.caf||"—"}</td><td style="font-size:11px;color:var(--muted)">${r.code||"—"}</td><td><strong>${r.nom||"—"}</strong></td><td><span class="badge badge-${r.type}">${r.type||"—"}</span></td><td class="amount">${fmt(r.montant)}</td><td>${r.duree?r.duree+" mois":"—"}</td></tr>`).join("")}</tbody></table></div></div>`;
@@ -1722,7 +1719,7 @@ function toCSV(rows){
   return [h,...d].map(row=>row.map(v=>`"${v||""}"`).join(";")).join("\n");
 }
 function dl(content,name){const b=new Blob(["\uFEFF"+content],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();}
-function exportCSV(){const mod=document.getElementById("dash_mod").value;const sem=document.getElementById("dash_sem").value;const caf=document.getElementById("dash_caf").value;const rows=allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem)&&(!caf||r.caf===caf));if(!rows.length){toast("Aucune donnée","error");return;}dl(toCSV(rows),"CMF_"+mod+"_"+(sem||"tout")+".csv");toast("Export téléchargé");}
+function exportCSV(){const mod=document.getElementById("dash_mod").value;const sem=document.getElementById("dash_sem").value;const caf=document.getElementById("dash_caf").value;const rows=getRowsForMod(mod,sem,caf);if(!rows.length){toast("Aucune donnée","error");return;}dl(toCSV(rows),"CMF_"+mod+"_"+(sem||"tout")+".csv");toast("Export téléchargé");}
 function exportSuivi(){const sem=document.getElementById("suivi_sem").value;if(!sem){toast("Sélectionnez une semaine","error");return;}const rows=document.querySelectorAll("#suiviTable tr");const csv=["CAF;Prévus;Vol.Prévu;Déposés;Vol.Déposé;Écart Nbre;Écart Volume;Statut"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim());if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Suivi_"+sem.replace(" ","_")+".csv");toast("Export téléchargé");}
 function exportMensuel(){const mois=document.getElementById("mens_mois").value;if(!mois){toast("Sélectionnez un mois","error");return;}const rows=document.querySelectorAll("#mensuelTable tr");const csv=["CAF;Nb;Volume;BFR;INVEST;MICRO;Ticket moyen;% volume"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim().replace(/\s+/g," "));if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Mensuel_"+mois+".csv");toast("Export téléchargé");}
 // ════════════════════════════════════════════════════════
@@ -1770,7 +1767,7 @@ function xlStyleKPIValue(color = XL.navy) {
 function getFilteredExportData(sem) {
   const result = {};
   Object.keys(MODS).forEach(mod => {
-    result[mod] = allData.filter(r => r.mod === mod && (!sem || r.semaine === sem));
+    result[mod] = getRowsForMod(mod, sem, null);
   });
   return result;
 }
@@ -2173,7 +2170,7 @@ async function renderAnalyse(){
     return `<option value="${m}"${m===curM?" selected":""}>${label}</option>`;
   }).join("");
 
-  const flt=mod=>allData.filter(r=>r.mod===mod&&(!sem||r.semaine===sem)&&(!mois||(r.date&&r.date.startsWith(mois))));
+  const flt=mod=>getRowsForMod(mod,sem,null).filter(r=>!mois||(r.date&&r.date.startsWith(mois)));
   const deposes=flt("deposes"),meps=flt("mep"),risque=flt("risque"),exploit=flt("exploit"),vmep=flt("vmep"),regul=flt("regul");
   const today=new Date();
   const taux=deposes.length?Math.round((meps.length/deposes.length)*100):0;
@@ -2191,7 +2188,7 @@ async function renderAnalyse(){
   document.getElementById("ana_taux").style.color=taux>=50?"#16a34a":taux>=30?"#f59e0b":"#CC0000";
   // Compter critiques selon seuils par module
   const critiques = bloques.filter(r=>{
-    const seuil = r.mod==="risque"?5:r.mod==="exploit"?3:14;
+    const seuil = r._etat==="risque"?5:r._etat==="exploit"?3:14;
     return r.jours>seuil;
   });
   document.getElementById("ana_bloq").textContent=critiques.length;
@@ -2202,11 +2199,11 @@ async function renderAnalyse(){
   } else {
     document.getElementById("ana_blocage").innerHTML=bloques.map(r=>{
       // Seuils par module: risque=5j, exploit=3j, vmep=14j, regul=14j
-    const seuil = r.mod==="risque"?5:r.mod==="exploit"?3:14;
+    const seuil = r._etat==="risque"?5:r._etat==="exploit"?3:14;
     const c=r.jours>seuil?"#CC0000":r.jours>(seuil*0.6)?"#f59e0b":"#16a34a";
     const bg=r.jours>seuil?"#fef2f2":r.jours>(seuil*0.6)?"#fffbeb":"#f0fdf4";
     const s=r.jours>seuil?"Critique":r.jours>(seuil*0.6)?"A surveiller":"Normal";
-      return `<tr style="background:${bg}"><td style="font-size:11px;font-weight:600">${MLBL[r.mod]||r.mod}</td><td style="font-size:11px">${r.caf||"?"}</td><td><strong>${r.nom||"?"}</strong><br><span style="font-size:10px;color:var(--muted)">${r.code||""}</span></td><td><span class="badge badge-${r.type}">${r.type||"?"}</span></td><td class="amount">${fmtM(r.montant)}</td><td>${fmtD(r.date)}</td><td style="font-weight:700;color:${c};font-size:15px">${r.jours}j</td><td style="font-weight:600;color:${c}">${s}</td></tr>`;
+      return `<tr style="background:${bg}"><td style="font-size:11px;font-weight:600">${MLBL[r._etat]||r._etat}</td><td style="font-size:11px">${r.caf||"?"}</td><td><strong>${r.nom||"?"}</strong><br><span style="font-size:10px;color:var(--muted)">${r.code||""}</span></td><td><span class="badge badge-${r.type}">${r.type||"?"}</span></td><td class="amount">${fmtM(r.montant)}</td><td>${fmtD(r.date)}</td><td style="font-weight:700;color:${c};font-size:15px">${r.jours}j</td><td style="font-weight:600;color:${c}">${s}</td></tr>`;
     }).join("");
   }
 
