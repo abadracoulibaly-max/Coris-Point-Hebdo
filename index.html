@@ -863,7 +863,7 @@ tr:hover td{background:var(--navy-light);}
 const SB_URL = "https://sdwrmdkldnyfgwnmryqd.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd3JtZGtsZG55Zmd3bm1yeXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDMwNTMsImV4cCI6MjA5ODMxOTA1M30.UO8e15d8qqj0r79ENmFufA7zzpxu-8_1V5llocHpdW8";
 
-const MODS = {deposes:{l:"Déposés",i:"📥"},comite:{l:"Comité",i:"📋"},risque:{l:"Risque",i:"🔍"},exploit:{l:"Exploitation",i:"⚙️"},vmep:{l:"Validés VMEP",i:"✅"},pipeline:{l:"Pipeline",i:"🔄"},mep:{l:"MEP",i:"💰"},regul:{l:"Régularisation",i:"⏳"}};
+const MODS = {deposes:{l:"Déposés",i:"📥"},comite:{l:"Comité",i:"📋"},risque:{l:"Risque",i:"🔍"},exploit:{l:"Exploitation",i:"⚙️"},vmep:{l:"Validés Non MEP",i:"✅"},pipeline:{l:"Pipeline",i:"🔄"},mep:{l:"MEP",i:"💰"},regul:{l:"Régularisation",i:"⏳"}};
 const PFX = {deposes:"d",comite:"c",risque:"r",exploit:"e",vmep:"v",pipeline:"p",mep:"m",regul:"g"};
 
 let allData = [];
@@ -1705,10 +1705,10 @@ async function renderSynthese(){
   const synSel=document.getElementById("syn_sem");
   const cur=synSel.value;
   synSel.innerHTML='<option value="">Toutes semaines</option>'+sems.map(s=>`<option${s===cur?" selected":""}>${s}</option>`).join("");
-  // La semaine ne filtre que les modules de saisie (dépôt de la semaine).
-  // Les modules de statut (risque/exploit/vmep/mep/regul) montrent tout le pipeline actuel,
-  // quelle que soit la semaine de dépôt d'origine.
-  const flt=m=>getRowsForMod(m, MOD_TO_STATUT[m]?null:sem, null);
+  // La semaine ne filtre que "Déposés" (combien déposés cette semaine).
+  // Tous les autres modules montrent tout le pipeline actuel, quelle que soit
+  // la semaine de dépôt d'origine.
+  const flt=m=>getRowsForMod(m, m==="deposes"?sem:null, null);
   document.getElementById("synthGrid").innerHTML=Object.entries(MODS).map(([mod,M])=>{
     const rows=flt(mod);
     const vol=rows.reduce((s,r)=>s+(r.montant||0),0);
@@ -1718,7 +1718,7 @@ async function renderSynthese(){
 }
 
 function showDetail(mod,sem){
-  const rows=getRowsForMod(mod, MOD_TO_STATUT[mod]?null:sem, null);
+  const rows=getRowsForMod(mod, mod==="deposes"?sem:null, null);
   const M=MODS[mod];
   if(!rows.length){document.getElementById("synthDetail").innerHTML=`<div class="empty-state"><div class="empty-icon">${M.i}</div><div class="empty-text">Aucune donnée</div></div>`;return;}
   document.getElementById("synthDetail").innerHTML=`<div style="margin-top:20px"><div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:12px">${M.i} ${M.l} — ${rows.length} dossiers</div><div class="table-wrap"><table><thead><tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th></tr></thead><tbody>${rows.map(r=>`<tr><td><span style="font-size:10px;font-weight:700;color:var(--navy)">${r.semaine||"—"}</span></td><td>${fmtD(r.date)}</td><td style="font-size:11px">${r.caf||"—"}</td><td style="font-size:11px;color:var(--muted)">${r.code||"—"}</td><td><strong>${r.nom||"—"}</strong></td><td><span class="badge badge-${r.type}">${r.type||"—"}</span></td><td class="amount">${fmt(r.montant)}</td><td>${r.duree?r.duree+" mois":"—"}</td></tr>`).join("")}</tbody></table></div></div>`;
