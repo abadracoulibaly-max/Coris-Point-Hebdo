@@ -1199,6 +1199,14 @@ function getWeek(ds) {
   s.setDate(j4.getDate()-((j4.getDay()+6)%7));
   return "S"+String(Math.floor((d-s)/(7*86400000))+1).padStart(2,"0")+" "+y;
 }
+// Garde-fou saisie date : un <input type="date"> peut enregistrer une année à 2 chiffres
+// (ex: "26" tapé au lieu de "2026") sans la compléter, ce qui stocke "0026-06-23" et fausse
+// tous les calculs d'ancienneté et de semaine ISO en aval.
+function isValidDateYear(ds){
+  if(!ds) return true;
+  const y=parseInt(ds.split("-")[0],10);
+  return y>=2000 && y<=2100;
+}
 function fmt(n){return n?Number(n).toLocaleString("fr-FR"):"—";}
 function fmtM(n){if(!n)return "—";const m=n/1e6;return m>=1?m.toFixed(1)+" M":(n/1000).toFixed(0)+" K";}
 function fmtD(s){if(!s)return "—";const d=s.split("T")[0].split("-");return d[2]+"/"+d[1]+"/"+d[0];}
@@ -1398,6 +1406,7 @@ async function saveRecord(mod){
   const montant=parseFloat(g("montant")||0),type=g("type");
   const codeRequired = mod !== "comite";
   if(!caf||!date||(!code&&codeRequired)||!nom||!montant||!type){toast("Champs obligatoires manquants","error");return;}
+  if(!isValidDateYear(date)){toast("Année de date invalide — vérifiez le champ date (ex: 2026, pas 26)","error");return;}
 
   const btn=document.getElementById("btn_"+mod);
   btn.disabled=true;
@@ -1696,7 +1705,10 @@ async function renderSynthese(){
   const synSel=document.getElementById("syn_sem");
   const cur=synSel.value;
   synSel.innerHTML='<option value="">Toutes semaines</option>'+sems.map(s=>`<option${s===cur?" selected":""}>${s}</option>`).join("");
-  const flt=m=>getRowsForMod(m,sem,null);
+  // La semaine ne filtre que les modules de saisie (dépôt de la semaine).
+  // Les modules de statut (risque/exploit/vmep/mep/regul) montrent tout le pipeline actuel,
+  // quelle que soit la semaine de dépôt d'origine.
+  const flt=m=>getRowsForMod(m, MOD_TO_STATUT[m]?null:sem, null);
   document.getElementById("synthGrid").innerHTML=Object.entries(MODS).map(([mod,M])=>{
     const rows=flt(mod);
     const vol=rows.reduce((s,r)=>s+(r.montant||0),0);
@@ -1706,7 +1718,7 @@ async function renderSynthese(){
 }
 
 function showDetail(mod,sem){
-  const rows=getRowsForMod(mod,sem,null);
+  const rows=getRowsForMod(mod, MOD_TO_STATUT[mod]?null:sem, null);
   const M=MODS[mod];
   if(!rows.length){document.getElementById("synthDetail").innerHTML=`<div class="empty-state"><div class="empty-icon">${M.i}</div><div class="empty-text">Aucune donnée</div></div>`;return;}
   document.getElementById("synthDetail").innerHTML=`<div style="margin-top:20px"><div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:12px">${M.i} ${M.l} — ${rows.length} dossiers</div><div class="table-wrap"><table><thead><tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th></tr></thead><tbody>${rows.map(r=>`<tr><td><span style="font-size:10px;font-weight:700;color:var(--navy)">${r.semaine||"—"}</span></td><td>${fmtD(r.date)}</td><td style="font-size:11px">${r.caf||"—"}</td><td style="font-size:11px;color:var(--muted)">${r.code||"—"}</td><td><strong>${r.nom||"—"}</strong></td><td><span class="badge badge-${r.type}">${r.type||"—"}</span></td><td class="amount">${fmt(r.montant)}</td><td>${r.duree?r.duree+" mois":"—"}</td></tr>`).join("")}</tbody></table></div></div>`;
@@ -2592,6 +2604,8 @@ async function saveStatutDossier() {
   const newMontant = parseInt(document.getElementById("dos_new_montant").value) || null;
   const newDuree = parseInt(document.getElementById("dos_new_duree").value) || null;
   const newSousStatut = newStatut === "exploit" ? (document.getElementById("dos_new_sous_statut")?.value || "chef_agence") : null;
+
+  if(!isValidDateYear(newDate)){toast("Année de date invalide — vérifiez le champ date (ex: 2026, pas 26)","error");return;}
 
   const sousStatutChanged = newStatut === "exploit" && newStatut === (r.statut_dossier || "depose") && newSousStatut !== (r.sous_statut_exploit || null);
 
