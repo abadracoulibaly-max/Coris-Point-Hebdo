@@ -2854,7 +2854,8 @@ async function renderObjectifsView() {
   const tot_obj_vol = rows.reduce((s,r)=>s+r.obj_vol,0);
   const tot_real_nb = rows.reduce((s,r)=>s+r.real_nb,0);
   const tot_real_vol = rows.reduce((s,r)=>s+r.real_vol,0);
-  const taux_global = tot_obj_nb ? Math.round((tot_real_nb/tot_obj_nb)*100) : 0;
+  // Basé sur le volume (FCFA), cohérent avec la carte "MEP du mois / Objectif" de l'onglet Analyse
+  const taux_global = tot_obj_vol ? Math.round((tot_real_vol/tot_obj_vol)*100) : 0;
   const color_global = taux_global>=100?"#16a34a":taux_global>=70?"#f59e0b":"#CC0000";
 
   document.getElementById("obj_tot_nb").textContent = tot_obj_nb;
