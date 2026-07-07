@@ -282,6 +282,7 @@ tr:hover td{background:var(--navy-light);}
   <button class="nav-tab manager-only" onclick="showTab('synthese',this)">🗂 Synthèse</button>
   <button class="nav-tab manager-only" onclick="showTab('objectifs',this)">🎯 Objectifs</button>
   <button class="nav-tab manager-only" onclick="showTab('analyse',this)">🔬 Analyse</button>
+  <button class="nav-tab manager-only" onclick="showTab('corbeille',this)">🗑️ Corbeille</button>
   <button class="nav-tab manager-only" onclick="showTab('admin',this)">👥 Utilisateurs</button>
 </div>
 
@@ -863,6 +864,18 @@ tr:hover td{background:var(--navy-light);}
   </div>
 </div>
 
+<!-- CORBEILLE -->
+<div class="view" id="view-corbeille">
+  <div class="section-header">
+    <div class="section-title">🗑️ Corbeille</div>
+    <div class="section-desc">Dossiers supprimés — qui, quand, et possibilité de restaurer</div>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Module</th><th>Montant</th><th>Supprimé par</th><th>Supprimé le</th><th></th></tr></thead>
+    <tbody id="corbeille_table"></tbody>
+  </table></div>
+</div>
+
 <!-- ADMIN UTILISATEURS -->
 <div class="view" id="view-admin">
   <div class="section-header"><div class="section-title">👥 Gestion des Utilisateurs</div><div class="section-desc">Créer, désactiver ou supprimer des comptes</div></div>
@@ -1100,7 +1113,20 @@ async function sbGet(filter = "") {
   if(currentRole === "caf" && currentUser) {
     cafFilter = `&caf=eq.${encodeURIComponent(currentUser.nom)}`;
   }
-  const r = await fetch(`${SB_URL}/rest/v1/dossiers?select=*${filter}${cafFilter}&order=created_at.desc&limit=2000`, {headers});
+  // Exclure les dossiers passés à la corbeille (suppression douce)
+  const r = await fetch(`${SB_URL}/rest/v1/dossiers?select=*${filter}${cafFilter}&supprime=eq.false&order=created_at.desc&limit=2000`, {headers});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Dossiers passés à la corbeille — pour la vue Corbeille (managers)
+async function sbGetDeleted() {
+  const headers = {"apikey":SB_KEY,"Authorization":"Bearer "+(currentSession||SB_KEY)};
+  let cafFilter = "";
+  if(currentRole === "caf" && currentUser) {
+    cafFilter = `&caf=eq.${encodeURIComponent(currentUser.nom)}`;
+  }
+  const r = await fetch(`${SB_URL}/rest/v1/dossiers?select=*${cafFilter}&supprime=eq.true&order=supprime_le.desc&limit=500`, {headers});
   if(!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -1114,10 +1140,22 @@ async function sbInsert(row) {
   if(!r.ok) throw new Error(await r.text());
 }
 
-async function sbDelete(id) {
+// Suppression douce : la ligne n'est plus effacée, elle est marquée supprimée
+// (qui + quand) et reste consultable depuis la Corbeille.
+async function sbSoftDelete(id) {
   const r = await fetch(`${SB_URL}/rest/v1/dossiers?id=eq.${id}`, {
-    method:"DELETE",
-    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+(currentSession||SB_KEY),"Prefer":"return=minimal"}
+    method:"PATCH",
+    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+(currentSession||SB_KEY),"Content-Type":"application/json","Prefer":"return=minimal"},
+    body: JSON.stringify({supprime:true, supprime_par: currentUser?.nom || null, supprime_le: new Date().toISOString()})
+  });
+  if(!r.ok) throw new Error(await r.text());
+}
+
+async function sbRestaurer(id) {
+  const r = await fetch(`${SB_URL}/rest/v1/dossiers?id=eq.${id}`, {
+    method:"PATCH",
+    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+(currentSession||SB_KEY),"Content-Type":"application/json","Prefer":"return=minimal"},
+    body: JSON.stringify({supprime:false})
   });
   if(!r.ok) throw new Error(await r.text());
 }
@@ -1130,9 +1168,14 @@ async function supprimerDossier(btn) {
 }
 
 async function deleteRecord(id, nom) {
-  if(!confirm(`Supprimer le dossier de "${nom}" ?\nCette action est irréversible.`)) return;
+  const rec = allData.find(r => r.id === id);
+  if (rec && currentRole !== "manager" && rec.caf !== currentUser?.nom) {
+    toast("Vous ne pouvez supprimer que vos propres dossiers", "error");
+    return;
+  }
+  if(!confirm(`Supprimer le dossier de "${nom}" ?\nRécupérable ensuite depuis la Corbeille (managers).`)) return;
   try {
-    await sbDelete(id);
+    await sbSoftDelete(id);
     allData = allData.filter(r => r.id !== id);
     const activeMod = document.querySelector(".mod-chip.active");
     if(activeMod) {
@@ -1142,6 +1185,39 @@ async function deleteRecord(id, nom) {
     if(document.getElementById("view-dashboard").classList.contains("active")) renderDashboard();
     toast("Dossier supprimé — " + nom);
   } catch(e) { toast("Erreur suppression : " + e.message, "error"); }
+}
+
+async function renderCorbeille() {
+  showLoad(true, "Chargement...");
+  let rows = [];
+  try { rows = await sbGetDeleted(); } catch(e) { toast("Erreur chargement corbeille", "error"); }
+  showLoad(false);
+
+  const tbody = document.getElementById("corbeille_table");
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🗑️</div><div class="empty-text">Corbeille vide</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td><strong>${r.nom || "—"}</strong></td>
+    <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
+    <td style="font-size:11px">${r.caf || "—"}</td>
+    <td style="font-size:11px">${MODS[r.mod]?.l || r.mod}</td>
+    <td class="amount">${fmtM(r.montant)}</td>
+    <td style="font-size:11px">${r.supprime_par || "—"}</td>
+    <td style="font-size:11px">${r.supprime_le ? fmtD(r.supprime_le.split("T")[0]) : "—"}</td>
+    <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="restaurerDossier(${r.id})">↩️ Restaurer</button></td>
+  </tr>`).join("");
+}
+
+async function restaurerDossier(id) {
+  if (!confirm("Restaurer ce dossier ?")) return;
+  try {
+    await sbRestaurer(id);
+    toast("Dossier restauré");
+    renderCorbeille();
+  } catch(e) { toast("Erreur restauration : " + e.message, "error"); }
 }
 
 // ====== ADMIN USERS ======
@@ -1290,6 +1366,7 @@ function showTab(name,el){
   if(name==="mesobjectifs") { populateCAFObjMois(); }
   if(name==="suivi") { populateSuiviSem(); }
   if(name==="mensuel") { populateMoisSel(); }
+  if(name==="corbeille") { renderCorbeille(); }
   if(name==="admin") { loadUsers(); }
 }
 
