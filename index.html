@@ -294,6 +294,8 @@ tr:hover td{background:var(--navy-light);}
   <button class="mod-chip" onclick="showModule('pipeline',this)">🔄 Pipeline</button>
   <button class="mod-chip" onclick="showModule('mep',this)">💰 MEP du Mois</button>
   <button class="mod-chip" onclick="showModule('regul',this)">⏳ Régularisation</button>
+  <button class="mod-chip" onclick="showModule('ajourne',this)">⏸️ Ajournés</button>
+  <button class="mod-chip" onclick="showModule('defavorable',this)">❌ Défavorables</button>
 </div>
 
 <div class="main">
@@ -467,6 +469,32 @@ tr:hover td{background:var(--navy-light);}
       <table>
         <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
         <tbody id="vue-regul"></tbody>
+      </table>
+    </div>
+  </div>
+
+    <div id="form-ajourne" style="display:none">
+    <div class="section-header">
+      <div class="section-title">⏸️ Ajournés</div>
+      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
+        <tbody id="vue-ajourne"></tbody>
+      </table>
+    </div>
+  </div>
+
+    <div id="form-defavorable" style="display:none">
+    <div class="section-header">
+      <div class="section-title">❌ Défavorables</div>
+      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
+        <tbody id="vue-defavorable"></tbody>
       </table>
     </div>
   </div>
@@ -661,13 +689,15 @@ tr:hover td{background:var(--navy-light);}
     <select id="dash_caf" onchange="renderDashboard()"><option value="">Tous CAF</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select>
     <select id="dash_mod" onchange="renderDashboard()">
       <option value="deposes">📥 Déposés</option>
-      <option value="comite">📋 Comité</option>
+      <option value="comite">📋 Prévision Comité</option>
       <option value="risque">🔍 Risque</option>
       <option value="exploit">⚙️ Exploitation</option>
-      <option value="vmep">✅ Validés VMEP</option>
+      <option value="vmep">✅ Validés Non MEP</option>
       <option value="pipeline">🔄 Pipeline</option>
-      <option value="mep">💰 MEP</option>
+      <option value="mep">💰 MEP du mois</option>
       <option value="regul">⏳ Régularisation</option>
+      <option value="ajourne">⏸️ Ajournés</option>
+      <option value="defavorable">❌ Défavorables</option>
     </select>
     <button class="btn-export" onclick="exportCSV()">⬇ CSV</button>
   </div>
@@ -878,7 +908,7 @@ tr:hover td{background:var(--navy-light);}
 const SB_URL = "https://sdwrmdkldnyfgwnmryqd.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd3JtZGtsZG55Zmd3bm1yeXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDMwNTMsImV4cCI6MjA5ODMxOTA1M30.UO8e15d8qqj0r79ENmFufA7zzpxu-8_1V5llocHpdW8";
 
-const MODS = {deposes:{l:"Déposés",i:"📥"},comite:{l:"Prévision Comité",i:"📋"},risque:{l:"Risque",i:"🔍"},exploit:{l:"Exploitation",i:"⚙️"},vmep:{l:"Validés Non MEP",i:"✅"},pipeline:{l:"Pipeline",i:"🔄"},mep:{l:"MEP du mois",i:"💰"},regul:{l:"Régularisation",i:"⏳"}};
+const MODS = {deposes:{l:"Déposés",i:"📥"},comite:{l:"Prévision Comité",i:"📋"},risque:{l:"Risque",i:"🔍"},exploit:{l:"Exploitation",i:"⚙️"},vmep:{l:"Validés Non MEP",i:"✅"},pipeline:{l:"Pipeline",i:"🔄"},mep:{l:"MEP du mois",i:"💰"},regul:{l:"Régularisation",i:"⏳"},ajourne:{l:"Ajournés",i:"⏸️"},defavorable:{l:"Défavorables",i:"❌"}};
 const PFX = {deposes:"d",comite:"c",risque:"r",exploit:"e",vmep:"v",pipeline:"p",mep:"m",regul:"g"};
 
 let allData = [];
@@ -1326,7 +1356,9 @@ const MOD_TO_STATUT = {
   exploit: "exploit",
   vmep: "vmep",
   mep: "mep",
-  regul: "regul"
+  regul: "regul",
+  ajourne: "ajourne",
+  defavorable: "defavorable"
 };
 
 // Récupère les dossiers d'un "état" (risque/exploit/vmep/mep/regul) en combinant :
@@ -1930,7 +1962,9 @@ function buildModuleSheet(wb, modKey, modLabel, rows) {
     vmep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "comtype", "obs"],
     pipeline: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "stade", "secteur", "obs"],
     mep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "ref", "obs"],
-    regul: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "ref", "obs", "deadline"]
+    regul: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "ref", "obs", "deadline"],
+    ajourne: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs"],
+    defavorable: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs"]
   };
   const labelsMap = {
     semaine: "Semaine", date: estModuleStatut ? "Date dépôt" : "Date",
@@ -2067,7 +2101,7 @@ async function exportRapportPro() {
     buildSyntheseSheet(wb, data, sem);
 
     // 2. Feuilles détaillées par module (ordre logique du circuit)
-    const moduleOrder = ["deposes", "comite", "risque", "exploit", "vmep", "pipeline", "mep", "regul"];
+    const moduleOrder = ["deposes", "comite", "risque", "exploit", "vmep", "pipeline", "mep", "regul", "ajourne", "defavorable"];
     moduleOrder.forEach(mod => {
       buildModuleSheet(wb, mod, MODS[mod].l, data[mod] || []);
     });
