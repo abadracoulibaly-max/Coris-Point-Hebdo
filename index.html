@@ -368,6 +368,10 @@ tr:hover td{background:var(--navy-light);}
       </div>
       <button class="btn-primary" id="btn_comite" onclick="saveRecord('comite')">✅ Enregistrer la prévision</button>
     </div>
+    <div class="filter-bar" style="margin-top:16px">
+      <select id="com_filter_sem" onchange="renderRecent('comite')" style="font-size:12px;padding:8px 12px"><option value="">Toutes semaines</option></select>
+      <button class="btn-export" onclick="exportComiteCSV()">⬇ Export CSV</button>
+    </div>
     <div id="recent-comite"></div>
   </div>
 
@@ -1430,6 +1434,7 @@ async function showModule(mod, el) {
   const MODS_SAISIE = ["deposes", "comite", "pipeline"];
   if (MODS_SAISIE.includes(mod)) {
     if (mod === "deposes") populateDepFilters();
+    if (mod === "comite") populateComiteFilters();
     renderRecent(mod);
   } else {
     // Modules lecture seule (risque, exploit, vmep, mep, regul)
@@ -1515,6 +1520,34 @@ function populateDepFilters(){
   }).join("");
 }
 
+function populateComiteFilters(){
+  const semSel = document.getElementById("com_filter_sem");
+  if(!semSel) return;
+  let rows = allData.filter(r=>r.mod==="comite");
+  if(currentRole==="caf") rows = rows.filter(r=>r.caf===currentUser.nom);
+
+  const curSem = semSel.value;
+  const sems = [...new Set(rows.map(r=>r.semaine).filter(Boolean))].sort().reverse();
+  semSel.innerHTML = '<option value="">Toutes semaines</option>' + sems.map(s=>`<option${s===curSem?" selected":""}>${s}</option>`).join("");
+}
+
+// ====== EXPORT PRÉVISIONS COMITÉ ======
+function toCSVComite(rows){
+  const h=["Semaine","Date comité prévue","CAF","Code","Client","Type","Montant","Duree","Type comité","Obs"];
+  const d=rows.map(r=>[r.semaine,fmtD(r.date),r.caf,r.code,r.nom,r.type,r.montant,r.duree,r.comtype,r.obs]);
+  return [h,...d].map(row=>row.map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(";")).join("\n");
+}
+
+function exportComiteCSV(){
+  const sem = document.getElementById("com_filter_sem")?.value || "";
+  let rows = allData.filter(r=>r.mod==="comite");
+  if(currentRole==="caf") rows = rows.filter(r=>r.caf===currentUser.nom);
+  if(sem) rows = rows.filter(r=>r.semaine===sem);
+  if(!rows.length){toast("Aucune donnée","error");return;}
+  dl(toCSVComite(rows),"CMF_PrevisionComite_"+(sem||"tout").replace(" ","_")+".csv");
+  toast("Export téléchargé");
+}
+
 function renderRecent(mod){
   const c=document.getElementById("recent-"+mod);if(!c)return;
   let rows=allData.filter(r=>r.mod===mod);
@@ -1526,6 +1559,11 @@ function renderRecent(mod){
     if(sem) rows = rows.filter(r=>r.semaine===sem);
     if(mois) rows = rows.filter(r=>r.date && r.date.split("T")[0].startsWith(mois));
     if(!deposesShowAll) rows = rows.slice(0,5);
+  } else if(mod==="comite"){
+    if(currentRole==="caf") rows = rows.filter(r=>r.caf===currentUser.nom);
+    const sem = document.getElementById("com_filter_sem")?.value || "";
+    if(sem) rows = rows.filter(r=>r.semaine===sem);
+    rows = rows.slice(0,5);
   } else {
     rows = rows.slice(0,5);
   }
