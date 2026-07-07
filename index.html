@@ -584,11 +584,11 @@ tr:hover td{background:var(--navy-light);}
         </div>
         <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div>
-            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Montant validé (FCFA) <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— si différent</span></label>
+            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Montant validé (FCFA) <span id="dos_montant_hint" style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— si différent</span></label>
             <input type="number" id="dos_new_montant" placeholder="Laisser vide = montant déposé" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
           </div>
           <div>
-            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Durée validée (mois)</label>
+            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Durée validée (mois) <span id="dos_duree_hint" style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— si différent</span></label>
             <input type="number" id="dos_new_duree" placeholder="Laisser vide = durée déposée" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
           </div>
         </div>
@@ -1249,7 +1249,7 @@ function showTab(name,el){
   el.classList.add("active");
   document.getElementById("moduleBar").style.display=name==="saisie"?"flex":"none";
   if(name==="dashboard") renderDashboard();
-  if(name==="dossiers") { populateDosFilterCaf(); renderDossiers(); }
+  if(name==="dossiers") { refreshAndRenderDossiers(); }
   if(name==="synthese") renderSynthese();
   if(name==="objectifs") { populateObjViewMois(); }
   if(name==="analyse") renderAnalyse();
@@ -1355,7 +1355,7 @@ function renderVueModule(mod) {
   if (!tbody) return;
 
   let list = allData.filter(r => r.mod === "deposes" && (r.statut_dossier || "depose") === statut);
-  if (currentRole === "ca") list = list.filter(r => r.caf === currentUser.nom);
+  if (currentRole === "caf") list = list.filter(r => r.caf === currentUser.nom);
 
   const colspan = mod === "exploit" ? 10 : 9;
   if (!list.length) {
@@ -1384,11 +1384,15 @@ function renderVueModule(mod) {
   }).join("");
 }
 
-function showModule(mod, el) {
+async function showModule(mod, el) {
   document.querySelectorAll("[id^=form-]").forEach(f => f.style.display = "none");
   document.querySelectorAll(".mod-chip").forEach(c => c.classList.remove("active"));
   document.getElementById("form-" + mod).style.display = "block";
   el.classList.add("active");
+
+  // Recharger depuis Supabase pour ne pas afficher des données obsolètes
+  // (ex: un dossier dont le statut a été modifié depuis le dernier chargement)
+  try{ allData = await sbGet(); setStatus(true); } catch(e){ setStatus(false); }
 
   // Modules avec formulaire de saisie : déposés, comité, pipeline
   const MODS_SAISIE = ["deposes", "comite", "pipeline"];
@@ -2589,8 +2593,16 @@ function getStatutPill(statut) {
 function getDossiersDeposes() {
   const deposes = allData.filter(r => r.mod === "deposes");
   // Un CAF ne voit que ses propres dossiers
-  if (currentRole === "ca") return deposes.filter(r => r.caf === currentUser.nom);
+  if (currentRole === "caf") return deposes.filter(r => r.caf === currentUser.nom);
   return deposes;
+}
+
+// Recharge depuis Supabase avant d'afficher (évite de montrer un statut obsolète
+// si le dossier a été modifié depuis le dernier chargement de allData)
+async function refreshAndRenderDossiers() {
+  try{ allData = await sbGet(); setStatus(true); } catch(e){ setStatus(false); }
+  populateDosFilterCaf();
+  renderDossiers();
 }
 
 function renderDossiers() {
@@ -2674,8 +2686,14 @@ function closeDosModal() {
 function toggleDosSousStatut() {
   const statut = document.getElementById("dos_new_statut").value;
   const wrap = document.getElementById("dos_sous_statut_wrap");
-  if (!wrap) return;
-  wrap.style.display = statut === "exploit" ? "block" : "none";
+  if (wrap) wrap.style.display = statut === "exploit" ? "block" : "none";
+
+  // Montant/durée validés obligatoires dès que le nouveau statut est Validé (VMEP) ou MEP
+  const requis = statut === "vmep" || statut === "mep";
+  const hintMontant = document.getElementById("dos_montant_hint");
+  const hintDuree = document.getElementById("dos_duree_hint");
+  if (hintMontant) { hintMontant.textContent = requis ? "— obligatoire" : "— si différent"; hintMontant.style.color = requis ? "#CC0000" : "var(--muted)"; }
+  if (hintDuree) { hintDuree.textContent = requis ? "— obligatoire" : "— si différent"; hintDuree.style.color = requis ? "#CC0000" : "var(--muted)"; }
 }
 
 function renderDosHistorique(historique) {
@@ -2714,6 +2732,14 @@ async function saveStatutDossier() {
   const newSousStatut = newStatut === "exploit" ? (document.getElementById("dos_new_sous_statut")?.value || "chef_agence") : null;
 
   if(!isValidDateYear(newDate)){toast("Année de date invalide — vérifiez le champ date (ex: 2026, pas 26)","error");return;}
+
+  // Montant et durée validés obligatoires pour figer la valeur définitive dès que le
+  // dossier est Validé (VMEP) ou MEP — évite que les rapports MEP retombent sur le
+  // montant initialement demandé faute de saisie du montant réellement validé.
+  if ((newStatut === "vmep" || newStatut === "mep") && (!newMontant || !newDuree)) {
+    toast("Montant validé et durée validée obligatoires pour ce statut", "error");
+    return;
+  }
 
   const sousStatutChanged = newStatut === "exploit" && newStatut === (r.statut_dossier || "depose") && newSousStatut !== (r.sous_statut_exploit || null);
 
