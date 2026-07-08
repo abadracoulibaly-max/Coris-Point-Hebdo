@@ -1160,6 +1160,15 @@ async function sbRestaurer(id) {
   if(!r.ok) throw new Error(await r.text());
 }
 
+// Suppression définitive (irréversible) — réservée aux managers, depuis la Corbeille uniquement
+async function sbHardDelete(id) {
+  const r = await fetch(`${SB_URL}/rest/v1/dossiers?id=eq.${id}`, {
+    method:"DELETE",
+    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+(currentSession||SB_KEY),"Prefer":"return=minimal"}
+  });
+  if(!r.ok) throw new Error(await r.text());
+}
+
 async function supprimerDossier(btn) {
   const id = parseInt(btn.dataset.id);
   const rec = allData.find(r => r.id === id);
@@ -1207,7 +1216,10 @@ async function renderCorbeille() {
     <td class="amount">${fmtM(r.montant)}</td>
     <td style="font-size:11px">${r.supprime_par || "—"}</td>
     <td style="font-size:11px">${r.supprime_le ? fmtD(r.supprime_le.split("T")[0]) : "—"}</td>
-    <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="restaurerDossier(${r.id})">↩️ Restaurer</button></td>
+    <td style="white-space:nowrap">
+      <button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="restaurerDossier(${r.id})">↩️ Restaurer</button>
+      <button style="padding:4px 10px;font-size:11px;background:none;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;cursor:pointer;margin-left:6px" onclick="supprimerDefinitivement(${r.id},'${(r.nom||"ce dossier").replace(/'/g,"\\'")}')">🗑️ Définitif</button>
+    </td>
   </tr>`).join("");
 }
 
@@ -1218,6 +1230,16 @@ async function restaurerDossier(id) {
     toast("Dossier restauré");
     renderCorbeille();
   } catch(e) { toast("Erreur restauration : " + e.message, "error"); }
+}
+
+async function supprimerDefinitivement(id, nom) {
+  if (currentRole !== "manager") { toast("Réservé aux managers", "error"); return; }
+  if (!confirm(`Supprimer DÉFINITIVEMENT le dossier de "${nom}" ?\nCette action est IRRÉVERSIBLE — impossible à annuler ou restaurer ensuite.`)) return;
+  try {
+    await sbHardDelete(id);
+    toast("Dossier supprimé définitivement");
+    renderCorbeille();
+  } catch(e) { toast("Erreur suppression définitive : " + e.message, "error"); }
 }
 
 // ====== ADMIN USERS ======
