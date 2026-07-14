@@ -212,7 +212,7 @@ tr:hover td{background:var(--navy-light);}
     <div class="login-title">Connexion</div>
     <div class="login-sub">Accédez à votre espace de reporting</div>
     <div class="login-error" id="loginError"></div>
-    <div class="login-form">
+    <div class="login-form" id="loginFormNormal">
       <div class="form-group">
         <label>Email professionnel</label>
         <input type="email" id="loginEmail" placeholder="votre.email@coris-mesofinance.com" autocomplete="email">
@@ -224,6 +224,30 @@ tr:hover td{background:var(--navy-light);}
       <button class="login-btn" id="loginBtn" onclick="doLogin()">
         Se connecter
       </button>
+      <div style="text-align:center;margin-top:12px">
+        <a href="#" onclick="showForgotPwd();return false;" style="font-size:12px;color:var(--blue)">Mot de passe oublié ?</a>
+      </div>
+    </div>
+    <div class="login-form" id="loginFormForgot" style="display:none">
+      <div class="form-group">
+        <label>Email professionnel</label>
+        <input type="email" id="forgotEmail" placeholder="votre.email@coris-mesofinance.com" autocomplete="email">
+      </div>
+      <button class="login-btn" onclick="sendPasswordRecovery()">Envoyer le lien de réinitialisation</button>
+      <div style="text-align:center;margin-top:12px">
+        <a href="#" onclick="showLoginForm();return false;" style="font-size:12px;color:var(--muted)">← Retour à la connexion</a>
+      </div>
+    </div>
+    <div class="login-form" id="loginFormReset" style="display:none">
+      <div class="form-group">
+        <label>Nouveau mot de passe</label>
+        <input type="password" id="resetPwd1" placeholder="•••••••• (6 caractères min.)">
+      </div>
+      <div class="form-group">
+        <label>Confirmer le mot de passe</label>
+        <input type="password" id="resetPwd2" placeholder="••••••••">
+      </div>
+      <button class="login-btn" onclick="submitPasswordReset()">Définir le nouveau mot de passe</button>
     </div>
     <div class="login-footer">Coris Mésofinance Côte d'Ivoire — Direction Commerciale</div>
   </div>
@@ -1055,6 +1079,96 @@ async function doLogin() {
   btn.innerHTML = "Se connecter";
 }
 
+// ====== MOT DE PASSE OUBLIÉ ======
+function showForgotPwd() {
+  document.getElementById("loginFormNormal").style.display = "none";
+  document.getElementById("loginFormForgot").style.display = "block";
+  const errEl = document.getElementById("loginError");
+  errEl.style.display = "none"; errEl.style.color = "";
+}
+
+function showLoginForm() {
+  document.getElementById("loginFormNormal").style.display = "block";
+  document.getElementById("loginFormForgot").style.display = "none";
+  document.getElementById("loginFormReset").style.display = "none";
+  const errEl = document.getElementById("loginError");
+  errEl.style.display = "none"; errEl.style.color = "";
+}
+
+// Envoie un email de réinitialisation via Supabase Auth (aucun privilège admin requis,
+// ne nécessite que la clé anon — la clé service_role ne doit jamais être exposée côté client)
+async function sbSendRecoveryEmail(email) {
+  const redirectTo = window.location.origin + window.location.pathname;
+  const r = await fetch(`${SB_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
+    method: "POST",
+    headers: {"apikey": SB_KEY, "Content-Type": "application/json"},
+    body: JSON.stringify({email})
+  });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+async function sendPasswordRecovery() {
+  const email = document.getElementById("forgotEmail").value.trim();
+  const errEl = document.getElementById("loginError");
+  if (!email) { errEl.style.color=""; errEl.textContent = "Renseignez votre email."; errEl.style.display = "block"; return; }
+  try {
+    await sbSendRecoveryEmail(email);
+  } catch(e) { /* On affiche toujours le même message, y compris en cas d'erreur réseau, pour ne pas révéler si l'email existe */ }
+  errEl.style.color = "#15803d";
+  errEl.textContent = "Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé.";
+  errEl.style.display = "block";
+}
+
+// Détecte le retour du lien de réinitialisation (#access_token=...&type=recovery dans l'URL)
+let recoveryAccessToken = null;
+function handleRecoveryRedirect() {
+  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
+  const params = new URLSearchParams(hash);
+  if (params.get("type") !== "recovery" || !params.get("access_token")) return false;
+  recoveryAccessToken = params.get("access_token");
+  document.getElementById("loginPage").style.display = "flex";
+  document.getElementById("appPage").style.display = "none";
+  document.getElementById("loginFormNormal").style.display = "none";
+  document.getElementById("loginFormForgot").style.display = "none";
+  document.getElementById("loginFormReset").style.display = "block";
+  return true;
+}
+
+async function submitPasswordReset() {
+  const pwd1 = document.getElementById("resetPwd1").value;
+  const pwd2 = document.getElementById("resetPwd2").value;
+  const errEl = document.getElementById("loginError");
+  errEl.style.color = "";
+  if (!pwd1 || pwd1.length < 6) { errEl.textContent = "Mot de passe trop court (6 caractères minimum)."; errEl.style.display = "block"; return; }
+  if (pwd1 !== pwd2) { errEl.textContent = "Les mots de passe ne correspondent pas."; errEl.style.display = "block"; return; }
+  try {
+    const r = await fetch(`${SB_URL}/auth/v1/user`, {
+      method: "PUT",
+      headers: {"apikey": SB_KEY, "Authorization": "Bearer " + recoveryAccessToken, "Content-Type": "application/json"},
+      body: JSON.stringify({password: pwd1})
+    });
+    if (!r.ok) throw new Error(await r.text());
+    history.replaceState(null, "", window.location.pathname);
+    document.getElementById("loginFormReset").style.display = "none";
+    document.getElementById("loginFormNormal").style.display = "block";
+    errEl.style.color = "#15803d";
+    errEl.textContent = "Mot de passe mis à jour — vous pouvez vous connecter.";
+    errEl.style.display = "block";
+  } catch(e) {
+    errEl.textContent = "Erreur : lien expiré ou invalide. Redemandez un email.";
+    errEl.style.display = "block";
+  }
+}
+
+// Déclenché par un manager depuis l'onglet Utilisateurs, pour un CAF qui ne peut plus se connecter
+async function adminResetPassword(email) {
+  if (!confirm(`Envoyer un email de réinitialisation de mot de passe à ${email} ?`)) return;
+  try {
+    await sbSendRecoveryEmail(email);
+    toast("Email de réinitialisation envoyé à " + email);
+  } catch(e) { toast("Erreur : " + e.message, "error"); }
+}
+
 async function doLogout() {
   if(currentSession) await sbSignOut(currentSession);
   sessionStorage.removeItem("cmf_session");
@@ -1295,6 +1409,7 @@ async function loadUsers() {
         </div>
         <div class="user-actions">
           <span class="badge badge-${u.role}">${u.role==="manager"?"Manager":"CAF"}</span>
+          <button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="adminResetPassword('${u.email}')">🔑 Réinitialiser</button>
           ${u.email !== currentUser.email ? `<button class="btn-sm-danger" onclick="deleteUser('${u.id}','${u.nom||u.email}')">Supprimer</button>` : '<span style="font-size:11px;color:var(--muted)">Vous</span>'}
         </div>
       </div>`).join("");
@@ -3286,6 +3401,9 @@ function populateCAFObjMois() {
 
 // ====== INIT ======
 async function init(){
+  // Lien de réinitialisation de mot de passe (prioritaire sur la session existante)
+  if (handleRecoveryRedirect()) return;
+
   // Vérifier session existante
   const saved = sessionStorage.getItem("cmf_session");
   if(saved){
