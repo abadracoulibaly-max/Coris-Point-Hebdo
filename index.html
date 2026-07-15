@@ -1584,15 +1584,23 @@ const MOD_TO_STATUT = {
 // - les dossiers hérités dont mod correspond directement (ancien système, avant le cycle de vie par statut)
 // Chaque ligne reçoit un champ _etat pour identifier son groupe logique, car r.mod seul ne suffit plus.
 // Pour les modules de saisie sans statut équivalent (deposes/comite/pipeline), retombe sur le filtre mod classique.
+// Dernier commentaire laissé lors d'un changement de statut (stocké dans statut_historique,
+// jamais dans obs qui est l'observation saisie au dépôt)
+function getDernierCommentaire(r) {
+  const h = r.statut_historique;
+  if (!Array.isArray(h) || !h.length) return "";
+  return h[h.length - 1]?.commentaire || "";
+}
+
 function getRowsForMod(mod, sem, caf) {
   const statut = MOD_TO_STATUT[mod];
   let rows;
   if (statut) {
     rows = allData.filter(r => r.mod === "deposes" && r.statut_dossier === statut)
-      .map(r => ({...r, montant: r.montant_valide || r.montant, _etat: mod}))
-      .concat(allData.filter(r => r.mod === mod).map(r => ({...r, _etat: mod})));
+      .map(r => ({...r, montant: r.montant_valide || r.montant, _etat: mod, _dernier_commentaire: getDernierCommentaire(r)}))
+      .concat(allData.filter(r => r.mod === mod).map(r => ({...r, _etat: mod, _dernier_commentaire: getDernierCommentaire(r)})));
   } else {
-    rows = allData.filter(r => r.mod === mod).map(r => ({...r, _etat: mod}));
+    rows = allData.filter(r => r.mod === mod).map(r => ({...r, _etat: mod, _dernier_commentaire: getDernierCommentaire(r)}));
   }
   if (sem) rows = rows.filter(r => r.semaine === sem);
   if (caf) rows = rows.filter(r => r.caf === caf);
@@ -2209,21 +2217,22 @@ function buildModuleSheet(wb, modKey, modLabel, rows) {
   const fieldsMap = {
     deposes: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "secteur", "obs"],
     comite: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "comtype", "obs"],
-    risque: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs"],
-    exploit: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs"],
-    vmep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "comtype", "obs"],
+    risque: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"],
+    exploit: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"],
+    vmep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "comtype", "obs", "commentaire"],
     pipeline: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "stade", "secteur", "obs"],
-    mep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "ref", "obs"],
-    regul: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "ref", "obs", "deadline"],
-    ajourne: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs"],
-    defavorable: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs"]
+    mep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "ref", "obs", "commentaire"],
+    regul: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "ref", "obs", "deadline", "commentaire"],
+    ajourne: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"],
+    defavorable: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"]
   };
   const labelsMap = {
     semaine: "Semaine", date: estModuleStatut ? "Date dépôt" : "Date",
     statut_date: "Date " + (STATUTS_DOSSIER[MOD_TO_STATUT[modKey]]?.l || modLabel),
     caf: "CAF", code: "Code Client", nom: "Client",
     type: "Type Crédit", montant: "Montant (FCFA)", duree: "Durée (mois)", secteur: "Secteur",
-    obs: "Observations", comtype: "Comité", stade: "Stade", ref: "Référence", deadline: "Délai"
+    obs: "Observations", comtype: "Comité", stade: "Stade", ref: "Référence", deadline: "Délai",
+    commentaire: "Dernier commentaire (statut)"
   };
 
   const fields = fieldsMap[modKey] || ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "obs"];
@@ -2239,7 +2248,7 @@ function buildModuleSheet(wb, modKey, modLabel, rows) {
   rows.forEach((r, idx) => {
     const xlRow = headerRow + 1 + idx;
     fields.forEach((f, i) => {
-      let val = r[f];
+      let val = f === "commentaire" ? r._dernier_commentaire : r[f];
       if (f === "date" || f === "deadline" || f === "statut_date") val = val ? fmtD(val) : "";
       if (f === "montant") { val = val || 0; }
       const cellAddr = String.fromCharCode(65 + i) + xlRow;
