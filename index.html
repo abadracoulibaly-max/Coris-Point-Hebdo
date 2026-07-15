@@ -2910,12 +2910,16 @@ function renderDossiers() {
   tbody.innerHTML = list.map(r => {
     const statut = r.statut_dossier || "depose";
     const statutDate = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
+    // Montant du dernier intervenant (montant_valide) prioritaire sur le montant déposé à l'origine
+    const montantAff = r.montant_valide
+      ? `<strong style="color:var(--success)">${fmtM(r.montant_valide)}</strong>`
+      : fmtM(r.montant);
     return `<tr style="cursor:pointer" onclick="openDosModal(${r.id})">
       <td><strong>${r.nom || "—"}</strong></td>
       <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
       <td style="font-size:11px">${r.caf}</td>
       <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
-      <td class="amount">${fmtM(r.montant)}</td>
+      <td class="amount">${montantAff}</td>
       <td>${getStatutPill(statut)}${getSousStatutBadge(r)}</td>
       <td style="font-size:11px">${statutDate}</td>
       <td style="font-size:11px">${r.semaine || "—"}</td>
@@ -2942,10 +2946,12 @@ function openDosModal(id) {
   document.getElementById("dos_modal_title").textContent = r.nom || "Dossier";
   document.getElementById("dos_modal_sub").textContent = `${r.code || "—"} · ${r.caf} · ${r.semaine || ""}`;
 
+  const montantSub = r.montant_valide && r.montant_valide !== r.montant ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">Déposé : ${fmtM(r.montant)}</div>` : "";
+  const dureeSub = r.duree_validee && r.duree_validee !== r.duree ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">Déposée : ${r.duree} mois</div>` : "";
   document.getElementById("dos_modal_infos").innerHTML = `
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Type</div><div style="font-size:14px;font-weight:600">${r.type || "—"}</div></div>
-    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Montant</div><div style="font-size:14px;font-weight:600">${fmtM(r.montant)} FCFA</div></div>
-    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Durée</div><div style="font-size:14px;font-weight:600">${r.duree || "—"} mois</div></div>
+    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Montant${r.montant_valide?" validé":""}</div><div style="font-size:14px;font-weight:600;color:${r.montant_valide?"var(--success)":"inherit"}">${fmtM(r.montant_valide||r.montant)} FCFA</div>${montantSub}</div>
+    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Durée${r.duree_validee?" validée":""}</div><div style="font-size:14px;font-weight:600;color:${r.duree_validee?"var(--success)":"inherit"}">${r.duree_validee||r.duree||"—"} mois</div>${dureeSub}</div>
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Statut actuel</div><div style="font-size:14px">${getStatutPill(r.statut_dossier || "depose")}${r.statut_dossier === "exploit" && r.sous_statut_exploit ? " · " + getSousStatutInline(r.sous_statut_exploit) : ""}</div></div>
   `;
 
@@ -3107,7 +3113,7 @@ function exportDossiers() {
   if (!list.length) { toast("Aucun dossier", "error"); return; }
   const headers = ["Client","Code","CAF","Type","Montant","Durée","Semaine","Statut","Sous-étape","Date statut","Observations"];
   const rows = list.map(r => [
-    r.nom, r.code, r.caf, r.type, r.montant, r.duree, r.semaine,
+    r.nom, r.code, r.caf, r.type, r.montant_valide || r.montant, r.duree_validee || r.duree, r.semaine,
     STATUTS_DOSSIER[r.statut_dossier || "depose"]?.l || "Déposé",
     r.statut_dossier === "exploit" ? (SOUS_STATUTS_EXPLOIT[r.sous_statut_exploit]?.l || "") : "",
     r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—",
