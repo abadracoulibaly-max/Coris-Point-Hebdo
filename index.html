@@ -61,9 +61,12 @@ header{background:var(--navy);padding:0 20px;display:flex;align-items:center;jus
 .nav-caret{font-size:9px;transition:transform .15s;}
 .nav-dropdown.open .nav-caret{transform:rotate(180deg);}
 .nav-dropdown.has-active .nav-dropdown-trigger{color:var(--navy);border-bottom-color:var(--gold);font-weight:600;}
-.nav-dropdown-menu{position:absolute;top:100%;left:0;background:var(--white);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:190px;padding:6px;display:none;flex-direction:column;gap:2px;z-index:60;}
-.nav-dropdown.open .nav-dropdown-menu{display:flex;}
-.nav-dropdown-menu .nav-tab{padding:9px 12px;border-radius:6px;border-bottom:none;text-align:left;width:100%;}
+/* position:fixed + coordonnées calculées en JS : le menu est sorti du flux de .nav-tabs
+   (voir toggleNavDropdown) pour ne pas être rogné par son overflow-x:auto, qui force
+   aussi overflow-y à "auto" et coupait tout menu dépassant vers le bas. */
+.nav-dropdown-menu{position:fixed;background:var(--white);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.14);min-width:200px;padding:6px;display:none;flex-direction:column;gap:2px;z-index:200;}
+.nav-dropdown-menu.open{display:flex;}
+.nav-dropdown-menu .nav-tab{padding:10px 12px;border-radius:6px;border-bottom:none;text-align:left;width:100%;}
 .nav-dropdown-menu .nav-tab:hover{background:var(--navy-light);color:var(--navy);}
 .nav-dropdown-menu .nav-tab.active{background:var(--navy-light);border-bottom:none;}
 .module-bar{background:var(--white);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;gap:8px;overflow-x:auto;}
@@ -311,23 +314,25 @@ tr:hover td{background:var(--navy-light);}
   <button class="nav-tab" onclick="showTab('mesobjectifs',this)">🎯 Mes Objectifs</button>
   <button class="nav-tab" onclick="showTab('dossiers',this)">📁 Dossiers</button>
   <button class="nav-tab manager-only" onclick="showTab('dashboard',this)">📊 Dashboard</button>
-  <div class="nav-dropdown manager-only" id="navDropdownRapports">
+  <div class="nav-dropdown manager-only" id="navDropdownRapports" data-menu="navMenuRapports">
     <button class="nav-tab nav-dropdown-trigger" onclick="toggleNavDropdown(event,'navDropdownRapports')">📈 Rapports <span class="nav-caret">▾</span></button>
-    <div class="nav-dropdown-menu">
-      <button class="nav-tab" onclick="showTab('suivi',this)">🎯 Suivi Hebdo</button>
-      <button class="nav-tab" onclick="showTab('mensuel',this)">📅 Récap Mensuel</button>
-      <button class="nav-tab" onclick="showTab('synthese',this)">🗂 Synthèse</button>
-      <button class="nav-tab" onclick="showTab('objectifs',this)">🎯 Objectifs</button>
-      <button class="nav-tab" onclick="showTab('analyse',this)">🔬 Analyse</button>
-    </div>
   </div>
-  <div class="nav-dropdown manager-only" id="navDropdownAdmin">
+  <div class="nav-dropdown manager-only" id="navDropdownAdmin" data-menu="navMenuAdmin">
     <button class="nav-tab nav-dropdown-trigger" onclick="toggleNavDropdown(event,'navDropdownAdmin')">⚙️ Administration <span class="nav-caret">▾</span></button>
-    <div class="nav-dropdown-menu">
-      <button class="nav-tab" onclick="showTab('corbeille',this)">🗑️ Corbeille</button>
-      <button class="nav-tab" onclick="showTab('admin',this)">👥 Utilisateurs</button>
-    </div>
   </div>
+</div>
+<!-- Menus déroulants rendus hors de .nav-tabs (position:fixed positionné en JS) pour ne pas
+     être rognés par son overflow-x:auto -->
+<div class="nav-dropdown-menu manager-only" id="navMenuRapports">
+  <button class="nav-tab" onclick="showTab('suivi',this)">🎯 Suivi Hebdo</button>
+  <button class="nav-tab" onclick="showTab('mensuel',this)">📅 Récap Mensuel</button>
+  <button class="nav-tab" onclick="showTab('synthese',this)">🗂 Synthèse</button>
+  <button class="nav-tab" onclick="showTab('objectifs',this)">🎯 Objectifs</button>
+  <button class="nav-tab" onclick="showTab('analyse',this)">🔬 Analyse</button>
+</div>
+<div class="nav-dropdown-menu manager-only" id="navMenuAdmin">
+  <button class="nav-tab" onclick="showTab('corbeille',this)">🗑️ Corbeille</button>
+  <button class="nav-tab" onclick="showTab('admin',this)">👥 Utilisateurs</button>
 </div>
 
 <div class="module-bar" id="moduleBar">
@@ -1510,14 +1515,29 @@ function setStatus(ok){
 }
 
 // ====== TABS ======
+// Ferme les menus ouverts (appelé aussi bien après une sélection que par le clic
+// extérieur global) — ne touche jamais à "has-active", géré uniquement par showTab/
+// allerVersAnalyse, sinon le clic sur un item de menu (qui remonte jusqu'à document)
+// effacerait la mise en évidence qu'on vient de poser.
+function closeNavDropdowns() {
+  document.querySelectorAll(".nav-dropdown").forEach(d=>d.classList.remove("open"));
+  document.querySelectorAll(".nav-dropdown-menu").forEach(m=>m.classList.remove("open"));
+}
+
 function showTab(name,el){
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   document.querySelectorAll(".nav-tab").forEach(t=>t.classList.remove("active"));
-  document.querySelectorAll(".nav-dropdown").forEach(d=>{d.classList.remove("open");d.classList.remove("has-active");});
+  document.querySelectorAll(".nav-dropdown").forEach(d=>d.classList.remove("has-active"));
+  closeNavDropdowns();
   document.getElementById("view-"+name).classList.add("active");
   el.classList.add("active");
-  const parentDropdown = el.closest(".nav-dropdown");
-  if(parentDropdown) parentDropdown.classList.add("has-active");
+  // Si l'onglet cliqué vient d'un menu déroulant (Rapports/Administration),
+  // met en évidence son déclencheur dans la barre.
+  const parentMenu = el.closest(".nav-dropdown-menu");
+  if(parentMenu){
+    const dropdownWrap = document.querySelector(`.nav-dropdown[data-menu="${parentMenu.id}"]`);
+    if(dropdownWrap) dropdownWrap.classList.add("has-active");
+  }
   document.getElementById("moduleBar").style.display=name==="saisie"?"flex":"none";
   if(name==="dashboard") renderDashboard();
   if(name==="dossiers") { refreshAndRenderDossiers(); }
@@ -1531,17 +1551,24 @@ function showTab(name,el){
   if(name==="admin") { loadUsers(); }
 }
 
-// Menus déroulants de la barre de navigation (Rapports, Administration)
+// Menus déroulants de la barre de navigation (Rapports, Administration).
+// Le menu est positionné en fixed via getBoundingClientRect() plutôt qu'ancré en CSS
+// (position:absolute) car il vit hors de .nav-tabs, qui le rognerait sinon (cf. CSS).
 function toggleNavDropdown(event, id) {
   event.stopPropagation();
-  const dd = document.getElementById(id);
-  const wasOpen = dd.classList.contains("open");
-  document.querySelectorAll(".nav-dropdown").forEach(d=>d.classList.remove("open"));
-  if(!wasOpen) dd.classList.add("open");
+  const dropdownWrap = document.getElementById(id);
+  const menu = document.getElementById(dropdownWrap.dataset.menu);
+  const wasOpen = menu.classList.contains("open");
+  closeNavDropdowns();
+  if(!wasOpen){
+    const rect = dropdownWrap.getBoundingClientRect();
+    menu.style.top = (rect.bottom + 4) + "px";
+    menu.style.left = rect.left + "px";
+    menu.classList.add("open");
+    dropdownWrap.classList.add("open");
+  }
 }
-document.addEventListener("click", () => {
-  document.querySelectorAll(".nav-dropdown").forEach(d=>d.classList.remove("open"));
-});
+document.addEventListener("click", closeNavDropdowns);
 
 // Vue filtrée pour les CAF sur les modules de suivi (pas de formulaire, liste de leurs dossiers)
 function renderModuleFiltreCAF(mod) {
@@ -2437,15 +2464,19 @@ function allerVersAnalyse() {
   // Activer l'onglet Analyse
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   document.querySelectorAll(".nav-tab").forEach(t=>t.classList.remove("active"));
-  document.querySelectorAll(".nav-dropdown").forEach(d=>{d.classList.remove("open");d.classList.remove("has-active");});
+  document.querySelectorAll(".nav-dropdown").forEach(d=>d.classList.remove("has-active"));
+  closeNavDropdowns();
   document.getElementById("view-analyse").classList.add("active");
   document.getElementById("moduleBar").style.display = "none";
   // Activer le bon onglet nav
   document.querySelectorAll(".nav-tab").forEach(t=>{
     if(t.getAttribute("onclick") && t.getAttribute("onclick").includes("analyse")) {
       t.classList.add("active");
-      const parentDropdown = t.closest(".nav-dropdown");
-      if(parentDropdown) parentDropdown.classList.add("has-active");
+      const parentMenu = t.closest(".nav-dropdown-menu");
+      if(parentMenu){
+        const dropdownWrap = document.querySelector(`.nav-dropdown[data-menu="${parentMenu.id}"]`);
+        if(dropdownWrap) dropdownWrap.classList.add("has-active");
+      }
     }
   });
   // Charger les données et afficher les alertes
