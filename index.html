@@ -3120,13 +3120,14 @@ function renderKpiStatuts() {
 function exportDossiers() {
   const list = getDossiersDeposes();
   if (!list.length) { toast("Aucun dossier", "error"); return; }
-  const headers = ["Client","Code","CAF","Type","Montant","Durée","Semaine","Statut","Sous-étape","Date statut","Observations"];
+  const headers = ["Client","Code","CAF","Type","Montant","Durée","Semaine","Statut","Sous-étape","Date statut","Observations","Dernier commentaire (statut)"];
   const rows = list.map(r => [
     r.nom, r.code, r.caf, r.type, r.montant_valide || r.montant, r.duree_validee || r.duree, r.semaine,
     STATUTS_DOSSIER[r.statut_dossier || "depose"]?.l || "Déposé",
     r.statut_dossier === "exploit" ? (SOUS_STATUTS_EXPLOIT[r.sous_statut_exploit]?.l || "") : "",
     r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—",
-    r.obs || ""
+    r.obs || "",
+    getDernierCommentaire(r)
   ]);
   const csv = [headers, ...rows].map(r => r.map(c => `"${String(c||"").replace(/"/g,'""')}"`).join(";")).join("\n");
   const b = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
