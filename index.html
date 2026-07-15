@@ -1491,7 +1491,7 @@ function isValidDateYear(ds){
   return y>=2000 && y<=2100;
 }
 function fmt(n){return n?Number(n).toLocaleString("fr-FR"):"—";}
-function fmtM(n){if(!n)return "—";const m=n/1e6;return m>=1?m.toFixed(1)+" M":(n/1000).toFixed(0)+" K";}
+function fmtM(n){if(!n)return "—";const m=n/1e6;return m>=1?m.toFixed(2)+" M":(n/1000).toFixed(0)+" K";}
 function fmtD(s){if(!s)return "—";const d=s.split("T")[0].split("-");return d[2]+"/"+d[1]+"/"+d[0];}
 
 function toast(msg,type="success"){
