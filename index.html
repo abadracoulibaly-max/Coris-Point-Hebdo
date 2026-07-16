@@ -660,6 +660,25 @@ tr:hover td{background:var(--navy-light);}
     <div class="section-title">📑 Vue Engagement</div>
     <div class="section-desc">Dossiers validés (Validé en attente, MEP, MEP à régulariser) — cliquez pour indiquer où en sont les conventions</div>
   </div>
+  <div class="filter-bar">
+    <input type="text" id="veng_search" placeholder="🔍 Rechercher un client, code client..." oninput="renderVueEngagement()" style="flex:2;min-width:180px;padding:8px 12px;font-size:12px">
+    <select id="veng_filter_statut" onchange="renderVueEngagement()" style="font-size:12px;padding:8px 12px">
+      <option value="">Tous les statuts</option>
+      <option value="vmep">Validé en attente</option>
+      <option value="mep">MEP</option>
+      <option value="regul">MEP à régulariser</option>
+    </select>
+    <select id="veng_filter_caf" onchange="renderVueEngagement()" style="font-size:12px;padding:8px 12px">
+      <option value="">Tous les CAF</option>
+    </select>
+    <select id="veng_filter_suivi" onchange="renderVueEngagement()" style="font-size:12px;padding:8px 12px">
+      <option value="">Tous les suivis conventions</option>
+      <option value="attente_documentation">📄 En attente de documentation</option>
+      <option value="edition">📝 Conventions en cours d'édition</option>
+      <option value="transmis_signature">✍️ Conventions transmises</option>
+    </select>
+    <button class="btn-export" onclick="exportVueEngagementExcel()">📊 Export Excel</button>
+  </div>
   <div class="table-wrap">
     <table>
       <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant validé</th><th>Statut</th><th>Suivi conventions</th><th>Depuis le</th><th></th></tr></thead>
@@ -1649,6 +1668,7 @@ async function refreshAndRenderVueRisque() {
 }
 async function refreshAndRenderVueEngagement() {
   try{ allData = await sbGet(); setStatus(true); } catch(e){ setStatus(false); }
+  populateVueEngagementFilters();
   renderVueEngagement();
 }
 
@@ -1816,13 +1836,38 @@ function renderVueRisqueDediee() {
 
 // Vue dédiée Engagements/Juridique (rôle "engagement") : combine les 3 statuts
 // validés (vmep, mep, regul) dans une seule liste, avec le suivi des conventions.
+// Filtres partagés par l'affichage et l'export (recherche, statut, CAF, suivi conventions)
+function getVueEngagementFilteredList() {
+  const search = (document.getElementById("veng_search")?.value || "").toLowerCase();
+  const filterStatut = document.getElementById("veng_filter_statut")?.value || "";
+  const filterCaf = document.getElementById("veng_filter_caf")?.value || "";
+  const filterSuivi = document.getElementById("veng_filter_suivi")?.value || "";
+
+  let list = allData.filter(r => r.mod === "deposes" && ["vmep", "mep", "regul"].includes(r.statut_dossier));
+  if (currentRole === "caf") list = list.filter(r => r.caf === currentUser.nom);
+  if (search) list = list.filter(r => (r.nom || "").toLowerCase().includes(search) || (r.code || "").toLowerCase().includes(search));
+  if (filterStatut) list = list.filter(r => r.statut_dossier === filterStatut);
+  if (filterCaf) list = list.filter(r => r.caf === filterCaf);
+  if (filterSuivi) list = list.filter(r => r.sous_statut_engagement === filterSuivi);
+  list.sort((a, b) => new Date(b.statut_date || 0) - new Date(a.statut_date || 0));
+  return list;
+}
+
+function populateVueEngagementFilters() {
+  const sel = document.getElementById("veng_filter_caf");
+  if (!sel) return;
+  let base = allData.filter(r => r.mod === "deposes" && ["vmep", "mep", "regul"].includes(r.statut_dossier));
+  if (currentRole === "caf") base = base.filter(r => r.caf === currentUser.nom);
+  const cur = sel.value;
+  const cafs = [...new Set(base.map(r => r.caf).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Tous les CAF</option>' + cafs.map(c => `<option${c === cur ? " selected" : ""}>${c}</option>`).join("");
+}
+
 function renderVueEngagement() {
   const tbody = document.getElementById("vue-engagement");
   if (!tbody) return;
 
-  let list = allData.filter(r => r.mod === "deposes" && ["vmep", "mep", "regul"].includes(r.statut_dossier));
-  if (currentRole === "caf") list = list.filter(r => r.caf === currentUser.nom);
-  list.sort((a, b) => new Date(b.statut_date || 0) - new Date(a.statut_date || 0));
+  const list = getVueEngagementFilteredList();
 
   if (!list.length) {
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📑</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
@@ -1846,6 +1891,44 @@ function renderVueEngagement() {
       <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
     </tr>`;
   }).join("");
+}
+
+// Export Excel réel (.xlsx) de la Vue Engagement, en respectant les filtres actifs
+function exportVueEngagementExcel() {
+  const list = getVueEngagementFilteredList();
+  if (!list.length) { toast("Aucune donnée à exporter", "error"); return; }
+  if (typeof XLSX === "undefined") { toast("Erreur : bibliothèque Excel non chargée", "error"); return; }
+
+  const ws = {};
+  const headers = ["Client", "Code", "CAF", "Type", "Montant validé (FCFA)", "Statut", "Suivi conventions", "Depuis le"];
+  headers.forEach((h, i) => { ws[String.fromCharCode(65 + i) + "1"] = { v: h, t: "s", s: xlStyleHeader() }; });
+
+  list.forEach((r, idx) => {
+    const row = idx + 2;
+    const suivi = (r.statut_dossier === "vmep" || r.statut_dossier === "regul")
+      ? (SOUS_STATUTS_ENGAGEMENT[r.sous_statut_engagement]?.l || "—")
+      : "MEP déjà décaissé";
+    const values = [
+      r.nom || "—", r.code || "—", r.caf || "—", r.type || "—",
+      r.montant_valide || r.montant || 0,
+      STATUTS_DOSSIER[r.statut_dossier]?.l || r.statut_dossier,
+      suivi,
+      r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—"
+    ];
+    values.forEach((v, i) => {
+      const isMontant = i === 4;
+      ws[String.fromCharCode(65 + i) + row] = { v: v == null ? "" : v, t: isMontant ? "n" : "s", s: xlStyleCell(false, idx % 2 === 0 ? XL.white : XL.lightGray) };
+    });
+  });
+
+  ws["!ref"] = "A1:H" + (list.length + 1);
+  ws["!cols"] = headers.map((h, i) => ({ wch: i === 0 ? 26 : i === 6 ? 34 : 16 }));
+  ws["!rows"] = [{ hpt: 22 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Vue Engagement");
+  XLSX.writeFile(wb, "CMF_VueEngagement_" + new Date().toISOString().split("T")[0] + ".xlsx");
+  toast("Export téléchargé", "success");
 }
 
 async function showModule(mod, el) {
