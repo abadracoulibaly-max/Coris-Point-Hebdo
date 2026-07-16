@@ -646,6 +646,22 @@ tr:hover td{background:var(--navy-light);}
     <div class="section-title">🔍 Vue Risque</div>
     <div class="section-desc">Dossiers au stade Analyse Risque — cliquez sur un dossier pour le transmettre en Validation DG</div>
   </div>
+  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-card"><div class="kpi-label">Dossiers au risque</div><div class="kpi-value" id="vrisk_kpi_total">—</div><div class="kpi-sub" id="vrisk_kpi_total_vol">—</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Analyste Risque</div><div class="kpi-value" id="vrisk_kpi_analyste">—</div><div class="kpi-sub">en cours d'analyse</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Responsable Risque</div><div class="kpi-value" id="vrisk_kpi_responsable">—</div><div class="kpi-sub">en validation</div></div>
+  </div>
+  <div class="filter-bar">
+    <input type="text" id="vrisk_search" placeholder="🔍 Rechercher un client, code client..." oninput="renderVueRisqueDediee()" style="flex:2;min-width:180px;padding:8px 12px;font-size:12px">
+    <select id="vrisk_filter_caf" onchange="renderVueRisqueDediee()" style="font-size:12px;padding:8px 12px">
+      <option value="">Tous les CAF</option>
+    </select>
+    <select id="vrisk_filter_sousetape" onchange="renderVueRisqueDediee()" style="font-size:12px;padding:8px 12px">
+      <option value="">Toutes les sous-étapes</option>
+      <option value="analyste">🔍 Analyste Risque</option>
+      <option value="responsable">👤 Responsable Risque</option>
+    </select>
+  </div>
   <div class="table-wrap">
     <table>
       <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th>Sous-étape</th><th></th></tr></thead>
@@ -659,6 +675,14 @@ tr:hover td{background:var(--navy-light);}
   <div class="section-header">
     <div class="section-title">📑 Vue Engagement</div>
     <div class="section-desc">Dossiers validés (Validé en attente, MEP, MEP à régulariser) — cliquez pour indiquer où en sont les conventions</div>
+  </div>
+  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-card blue"><div class="kpi-label">Validé en attente</div><div class="kpi-value" id="veng_kpi_vmep">—</div><div class="kpi-sub" id="veng_kpi_vmep_vol">—</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Convention en cours</div><div class="kpi-value" id="veng_kpi_edition">—</div><div class="kpi-sub">édition</div></div>
+    <div class="kpi-card red"><div class="kpi-label">En attente de documentation</div><div class="kpi-value" id="veng_kpi_attente_doc">—</div><div class="kpi-sub">documentation</div></div>
+    <div class="kpi-card"><div class="kpi-label">Convention transmise</div><div class="kpi-value" id="veng_kpi_transmis">—</div><div class="kpi-sub">attente signature</div></div>
+    <div class="kpi-card"><div class="kpi-label">MEP à régulariser</div><div class="kpi-value" id="veng_kpi_regul">—</div><div class="kpi-sub" id="veng_kpi_regul_vol">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">MEP</div><div class="kpi-value" id="veng_kpi_mep">—</div><div class="kpi-sub" id="veng_kpi_mep_vol">—</div></div>
   </div>
   <div class="filter-bar">
     <input type="text" id="veng_search" placeholder="🔍 Rechercher un client, code client..." oninput="renderVueEngagement()" style="flex:2;min-width:180px;padding:8px 12px;font-size:12px">
@@ -1664,11 +1688,14 @@ function showTab(name,el){
 // Rechargent depuis Supabase avant d'afficher, comme refreshAndRenderDossiers()
 async function refreshAndRenderVueRisque() {
   try{ allData = await sbGet(); setStatus(true); } catch(e){ setStatus(false); }
+  populateVueRisqueFilters();
+  renderVueRisqueKpis();
   renderVueRisqueDediee();
 }
 async function refreshAndRenderVueEngagement() {
   try{ allData = await sbGet(); setStatus(true); } catch(e){ setStatus(false); }
   populateVueEngagementFilters();
+  renderVueEngagementKpis();
   renderVueEngagement();
 }
 
@@ -1830,8 +1857,71 @@ function renderVueModule(mod, targetId) {
 
 // Vue dédiée au service Risque (nav de premier niveau, rôle "risque") —
 // réutilise renderVueModule sur un tbody distinct de celui de l'onglet Saisie.
+// Filtres partagés par l'affichage de la Vue Risque
+function getVueRisqueFilteredList() {
+  const search = (document.getElementById("vrisk_search")?.value || "").toLowerCase();
+  const filterCaf = document.getElementById("vrisk_filter_caf")?.value || "";
+  const filterSousEtape = document.getElementById("vrisk_filter_sousetape")?.value || "";
+
+  let list = allData.filter(r => r.mod === "deposes" && r.statut_dossier === "risque");
+  if (currentRole === "caf") list = list.filter(r => r.caf === currentUser.nom);
+  if (search) list = list.filter(r => (r.nom || "").toLowerCase().includes(search) || (r.code || "").toLowerCase().includes(search));
+  if (filterCaf) list = list.filter(r => r.caf === filterCaf);
+  if (filterSousEtape) list = list.filter(r => (r.sous_statut_risque || "analyste") === filterSousEtape);
+  return list;
+}
+
+function populateVueRisqueFilters() {
+  const sel = document.getElementById("vrisk_filter_caf");
+  if (!sel) return;
+  let base = allData.filter(r => r.mod === "deposes" && r.statut_dossier === "risque");
+  if (currentRole === "caf") base = base.filter(r => r.caf === currentUser.nom);
+  const cur = sel.value;
+  const cafs = [...new Set(base.map(r => r.caf).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Tous les CAF</option>' + cafs.map(c => `<option${c === cur ? " selected" : ""}>${c}</option>`).join("");
+}
+
+// KPI globaux Vue Risque : non affectés par les filtres de la liste (état des lieux stable)
+function renderVueRisqueKpis() {
+  let base = allData.filter(r => r.mod === "deposes" && r.statut_dossier === "risque");
+  if (currentRole === "caf") base = base.filter(r => r.caf === currentUser.nom);
+  const analysteRows = base.filter(r => (r.sous_statut_risque || "analyste") === "analyste");
+  const responsableRows = base.filter(r => r.sous_statut_risque === "responsable");
+
+  document.getElementById("vrisk_kpi_total").textContent = base.length;
+  document.getElementById("vrisk_kpi_total_vol").textContent = fmtM(base.reduce((s, r) => s + (r.montant_valide || r.montant || 0), 0));
+  document.getElementById("vrisk_kpi_analyste").textContent = analysteRows.length;
+  document.getElementById("vrisk_kpi_responsable").textContent = responsableRows.length;
+}
+
 function renderVueRisqueDediee() {
-  renderVueModule("risque", "vue-risque-dediee");
+  const tbody = document.getElementById("vue-risque-dediee");
+  if (!tbody) return;
+
+  const list = getVueRisqueFilteredList();
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(r => {
+    const montantAff = r.montant_valide
+      ? `<strong style="color:var(--success)">${fmtM(r.montant_valide)}</strong>`
+      : `<span style="color:var(--muted)">${fmtM(r.montant)}</span>`;
+    const statutDate = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
+    return `<tr style="cursor:pointer" onclick="openDosModal(${r.id})">
+      <td><strong>${r.nom || "—"}</strong></td>
+      <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
+      <td style="font-size:11px">${r.caf}</td>
+      <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
+      <td class="amount">${fmtM(r.montant)}</td>
+      <td>${montantAff}</td>
+      <td style="font-size:11px">${statutDate}</td>
+      <td style="font-size:11px">${r.semaine || "—"}</td>
+      <td>${getSousStatutRisqueInline(r.sous_statut_risque)}</td>
+      <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
+    </tr>`;
+  }).join("");
 }
 
 // Vue dédiée Engagements/Juridique (rôle "engagement") : combine les 3 statuts
@@ -1861,6 +1951,32 @@ function populateVueEngagementFilters() {
   const cur = sel.value;
   const cafs = [...new Set(base.map(r => r.caf).filter(Boolean))].sort();
   sel.innerHTML = '<option value="">Tous les CAF</option>' + cafs.map(c => `<option${c === cur ? " selected" : ""}>${c}</option>`).join("");
+}
+
+// KPI globaux Vue Engagement : non affectés par les filtres de la liste (état des lieux stable)
+function renderVueEngagementKpis() {
+  let base = allData.filter(r => r.mod === "deposes" && ["vmep", "mep", "regul"].includes(r.statut_dossier));
+  if (currentRole === "caf") base = base.filter(r => r.caf === currentUser.nom);
+
+  const vmepRows = base.filter(r => r.statut_dossier === "vmep");
+  const regulRows = base.filter(r => r.statut_dossier === "regul");
+  const mepRows = base.filter(r => r.statut_dossier === "mep");
+  const conventionRows = base.filter(r => r.statut_dossier === "vmep" || r.statut_dossier === "regul");
+  const editionRows = conventionRows.filter(r => r.sous_statut_engagement === "edition");
+  const attenteDocRows = conventionRows.filter(r => r.sous_statut_engagement === "attente_documentation");
+  const transmisRows = conventionRows.filter(r => r.sous_statut_engagement === "transmis_signature");
+
+  const vol = rows => fmtM(rows.reduce((s, r) => s + (r.montant_valide || r.montant || 0), 0));
+
+  document.getElementById("veng_kpi_vmep").textContent = vmepRows.length;
+  document.getElementById("veng_kpi_vmep_vol").textContent = vol(vmepRows);
+  document.getElementById("veng_kpi_edition").textContent = editionRows.length;
+  document.getElementById("veng_kpi_attente_doc").textContent = attenteDocRows.length;
+  document.getElementById("veng_kpi_transmis").textContent = transmisRows.length;
+  document.getElementById("veng_kpi_regul").textContent = regulRows.length;
+  document.getElementById("veng_kpi_regul_vol").textContent = vol(regulRows);
+  document.getElementById("veng_kpi_mep").textContent = mepRows.length;
+  document.getElementById("veng_kpi_mep_vol").textContent = vol(mepRows);
 }
 
 function renderVueEngagement() {
