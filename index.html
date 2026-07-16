@@ -438,7 +438,7 @@ tr:hover td{background:var(--navy-light);}
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
+        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th>Sous-étape</th><th></th></tr></thead>
         <tbody id="vue-risque"></tbody>
       </table>
     </div>
@@ -648,7 +648,7 @@ tr:hover td{background:var(--navy-light);}
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
+      <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th>Sous-étape</th><th></th></tr></thead>
       <tbody id="vue-risque-dediee"></tbody>
     </table>
   </div>
@@ -719,6 +719,13 @@ tr:hover td{background:var(--navy-light);}
             <option value="attente_documentation">📄 En attente de documentation</option>
             <option value="edition">📝 Conventions en cours d'édition</option>
             <option value="transmis_signature">✍️ Conventions transmises — attente signature</option>
+          </select>
+        </div>
+        <div id="dos_sous_statut_risque_wrap" style="display:none;margin-top:10px">
+          <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Sous-étape — service Risque</label>
+          <select id="dos_new_sous_statut_risque" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
+            <option value="analyste">🔍 Analyste Risque</option>
+            <option value="responsable">👤 Responsable Risque</option>
           </select>
         </div>
         <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -1773,7 +1780,7 @@ function renderVueModule(mod, targetId) {
   let list = allData.filter(r => r.mod === "deposes" && (r.statut_dossier || "depose") === statut);
   if (currentRole === "caf") list = list.filter(r => r.caf === currentUser.nom);
 
-  const colspan = mod === "exploit" ? 10 : 9;
+  const colspan = (mod === "exploit" || mod === "risque") ? 10 : 9;
   if (!list.length) {
     tbody.innerHTML = `<tr><td colspan="${colspan}"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
     return;
@@ -1784,7 +1791,8 @@ function renderVueModule(mod, targetId) {
       ? `<strong style="color:var(--success)">${fmtM(r.montant_valide)}</strong>`
       : `<span style="color:var(--muted)">${fmtM(r.montant)}</span>`;
     const statutDate = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
-    const sousEtapeTd = mod === "exploit" ? `<td>${getSousStatutInline(r.sous_statut_exploit)}</td>` : "";
+    const sousEtapeTd = mod === "exploit" ? `<td>${getSousStatutInline(r.sous_statut_exploit)}</td>`
+      : mod === "risque" ? `<td>${getSousStatutRisqueInline(r.sous_statut_risque)}</td>` : "";
     return `<tr style="cursor:pointer" onclick="openDosModal(${r.id})">
       <td><strong>${r.nom || "—"}</strong></td>
       <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
@@ -3093,6 +3101,12 @@ const SOUS_STATUTS_ENGAGEMENT = {
   transmis_signature:    { l: "Conventions transmises — attente signature", icon: "✍️" }
 };
 
+// Sous-étapes internes au stade "Au risque" (service Risque)
+const SOUS_STATUTS_RISQUE = {
+  analyste:     { l: "Analyste Risque",     icon: "🔍" },
+  responsable:  { l: "Responsable Risque",  icon: "👤" }
+};
+
 function getSousStatutInline(key) {
   const s = SOUS_STATUTS_EXPLOIT[key];
   if (!s) return '<span style="color:var(--muted);font-size:11px">—</span>';
@@ -3115,6 +3129,19 @@ function getSousStatutEngagementInline(key) {
 function getSousStatutEngagementBadge(r) {
   if ((r.statut_dossier !== "vmep" && r.statut_dossier !== "regul") || !r.sous_statut_engagement) return "";
   const s = SOUS_STATUTS_ENGAGEMENT[r.sous_statut_engagement];
+  if (!s) return "";
+  return `<br><span style="font-size:10px;color:var(--muted)">${s.icon} ${s.l}</span>`;
+}
+
+function getSousStatutRisqueInline(key) {
+  const s = SOUS_STATUTS_RISQUE[key];
+  if (!s) return '<span style="color:var(--muted);font-size:11px">—</span>';
+  return `<span style="font-size:11px;font-weight:600;color:var(--navy)">${s.icon} ${s.l}</span>`;
+}
+
+function getSousStatutRisqueBadge(r) {
+  if (r.statut_dossier !== "risque" || !r.sous_statut_risque) return "";
+  const s = SOUS_STATUTS_RISQUE[r.sous_statut_risque];
   if (!s) return "";
   return `<br><span style="font-size:10px;color:var(--muted)">${s.icon} ${s.l}</span>`;
 }
@@ -3172,7 +3199,7 @@ function renderDossiers() {
       <td style="font-size:11px">${r.caf}</td>
       <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
       <td class="amount">${montantAff}</td>
-      <td>${getStatutPill(statut)}${getSousStatutBadge(r)}${getSousStatutEngagementBadge(r)}</td>
+      <td>${getStatutPill(statut)}${getSousStatutBadge(r)}${getSousStatutEngagementBadge(r)}${getSousStatutRisqueBadge(r)}</td>
       <td style="font-size:11px">${statutDate}</td>
       <td style="font-size:11px">${r.semaine || "—"}</td>
       <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
@@ -3204,7 +3231,7 @@ function openDosModal(id) {
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Type</div><div style="font-size:14px;font-weight:600">${r.type || "—"}</div></div>
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Montant${r.montant_valide?" validé":""}</div><div style="font-size:14px;font-weight:600;color:${r.montant_valide?"var(--success)":"inherit"}">${fmtM(r.montant_valide||r.montant)} FCFA</div>${montantSub}</div>
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Durée${r.duree_validee?" validée":""}</div><div style="font-size:14px;font-weight:600;color:${r.duree_validee?"var(--success)":"inherit"}">${r.duree_validee||r.duree||"—"} mois</div>${dureeSub}</div>
-    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Statut actuel</div><div style="font-size:14px">${getStatutPill(r.statut_dossier || "depose")}${r.statut_dossier === "exploit" && r.sous_statut_exploit ? " · " + getSousStatutInline(r.sous_statut_exploit) : ""}${(r.statut_dossier === "vmep" || r.statut_dossier === "regul") && r.sous_statut_engagement ? " · " + getSousStatutEngagementInline(r.sous_statut_engagement) : ""}</div></div>
+    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Statut actuel</div><div style="font-size:14px">${getStatutPill(r.statut_dossier || "depose")}${r.statut_dossier === "exploit" && r.sous_statut_exploit ? " · " + getSousStatutInline(r.sous_statut_exploit) : ""}${(r.statut_dossier === "vmep" || r.statut_dossier === "regul") && r.sous_statut_engagement ? " · " + getSousStatutEngagementInline(r.sous_statut_engagement) : ""}${r.statut_dossier === "risque" && r.sous_statut_risque ? " · " + getSousStatutRisqueInline(r.sous_statut_risque) : ""}</div></div>
   `;
 
   // Pré-sélectionner le statut actuel et les montants validés
@@ -3215,6 +3242,7 @@ function openDosModal(id) {
   document.getElementById("dos_new_duree").value = r.duree_validee || "";
   document.getElementById("dos_new_sous_statut").value = r.sous_statut_exploit || "chef_agence";
   document.getElementById("dos_new_sous_statut_engagement").value = r.sous_statut_engagement || "attente_documentation";
+  document.getElementById("dos_new_sous_statut_risque").value = r.sous_statut_risque || "analyste";
   toggleDosSousStatut();
 
   // Historique des transitions
@@ -3237,6 +3265,11 @@ function toggleDosSousStatut() {
   // régulariser — une fois en MEP le décaissement a eu lieu, les conventions sont signées.
   const wrapEngagement = document.getElementById("dos_sous_statut_engagement_wrap");
   if (wrapEngagement) wrapEngagement.style.display = (statut === "vmep" || statut === "regul") ? "block" : "none";
+
+  // Sous-étape service Risque : Analyste Risque → Responsable Risque, tant que le
+  // dossier reste Au risque (avant transmission en Validation DG).
+  const wrapRisque = document.getElementById("dos_sous_statut_risque_wrap");
+  if (wrapRisque) wrapRisque.style.display = statut === "risque" ? "block" : "none";
 
   // Montant/durée validés obligatoires dès que le nouveau statut est Validé (VMEP) ou MEP
   const requisMontantDuree = statut === "vmep" || statut === "mep";
@@ -3267,6 +3300,7 @@ function renderDosHistorique(historique) {
     const montantTxt = h.montant_valide ? `<div style="font-size:11px;color:var(--navy);font-weight:600;margin-top:3px">💰 Montant validé : ${fmtM(h.montant_valide)} FCFA</div>` : "";
     const sousStatutTxt = h.sous_statut_exploit ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${getSousStatutInline(h.sous_statut_exploit)}</div>` : "";
     const sousStatutEngagementTxt = h.sous_statut_engagement ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${getSousStatutEngagementInline(h.sous_statut_engagement)}</div>` : "";
+    const sousStatutRisqueTxt = h.sous_statut_risque ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${getSousStatutRisqueInline(h.sous_statut_risque)}</div>` : "";
     return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
       <div style="width:32px;height:32px;border-radius:50%;background:${s.bg};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${s.icon}</div>
       <div>
@@ -3274,6 +3308,7 @@ function renderDosHistorique(historique) {
         <div style="font-size:11px;color:var(--muted)">${fmtD(h.date)} · Par ${h.user}</div>
         ${sousStatutTxt}
         ${sousStatutEngagementTxt}
+        ${sousStatutRisqueTxt}
         ${montantTxt}
         ${h.commentaire ? `<div style="font-size:11px;color:var(--text);margin-top:3px;font-style:italic">${h.commentaire}</div>` : ""}
       </div>
@@ -3292,6 +3327,7 @@ async function saveStatutDossier() {
   const newDuree = parseInt(document.getElementById("dos_new_duree").value) || null;
   const newSousStatut = newStatut === "exploit" ? (document.getElementById("dos_new_sous_statut")?.value || "chef_agence") : null;
   const newSousStatutEngagement = (newStatut === "vmep" || newStatut === "regul") ? (document.getElementById("dos_new_sous_statut_engagement")?.value || "attente_documentation") : null;
+  const newSousStatutRisque = newStatut === "risque" ? (document.getElementById("dos_new_sous_statut_risque")?.value || "analyste") : null;
 
   if(!isValidDateYear(newDate)){toast("Année de date invalide — vérifiez le champ date (ex: 2026, pas 26)","error");return;}
 
@@ -3312,8 +3348,9 @@ async function saveStatutDossier() {
 
   const sousStatutChanged = newStatut === "exploit" && newStatut === (r.statut_dossier || "depose") && newSousStatut !== (r.sous_statut_exploit || null);
   const sousStatutEngagementChanged = (newStatut === "vmep" || newStatut === "regul") && newStatut === (r.statut_dossier || "depose") && newSousStatutEngagement !== (r.sous_statut_engagement || null);
+  const sousStatutRisqueChanged = newStatut === "risque" && newStatut === (r.statut_dossier || "depose") && newSousStatutRisque !== (r.sous_statut_risque || null);
 
-  if (newStatut === (r.statut_dossier || "depose") && !comment && !sousStatutChanged && !sousStatutEngagementChanged) {
+  if (newStatut === (r.statut_dossier || "depose") && !comment && !sousStatutChanged && !sousStatutEngagementChanged && !sousStatutRisqueChanged) {
     toast("Le statut est identique à l'actuel", "error"); return;
   }
 
@@ -3322,6 +3359,7 @@ async function saveStatutDossier() {
     statut: newStatut,
     sous_statut_exploit: newSousStatut,
     sous_statut_engagement: newSousStatutEngagement,
+    sous_statut_risque: newSousStatutRisque,
     date: newDate || new Date().toISOString().split("T")[0],
     user: currentUser.nom,
     commentaire: comment,
@@ -3335,7 +3373,8 @@ async function saveStatutDossier() {
       statut_date: newDate ? newDate + "T00:00:00Z" : new Date().toISOString(),
       statut_historique: historique,
       sous_statut_exploit: newSousStatut,
-      sous_statut_engagement: newSousStatutEngagement
+      sous_statut_engagement: newSousStatutEngagement,
+      sous_statut_risque: newSousStatutRisque
     };
     if (newMontant) patch.montant_valide = newMontant;
     if (newDuree) patch.duree_validee = newDuree;
@@ -3362,6 +3401,7 @@ async function saveStatutDossier() {
     r.statut_historique = historique;
     r.sous_statut_exploit = newSousStatut;
     r.sous_statut_engagement = newSousStatutEngagement;
+    r.sous_statut_risque = newSousStatutRisque;
     if (newMontant) r.montant_valide = newMontant;
     if (newDuree) r.duree_validee = newDuree;
 
