@@ -115,6 +115,14 @@ textarea{resize:vertical;min-height:70px;}
 .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
 table{width:100%;border-collapse:collapse;font-size:12px;}
 thead{background:var(--navy);color:#fff;}
+/* Tableaux longs (Dossiers, Vue Risque, Vue Engagement) : hauteur limitée avec défilement
+   interne + en-tête et 1ère colonne collants, pour que la barre horizontale reste accessible
+   sans avoir à dérouler toute la liste, et qu'on garde toujours le client sous les yeux. */
+.table-scroll{max-height:560px;overflow-y:auto;}
+.table-scroll thead th{position:sticky;top:0;z-index:2;}
+.table-scroll tbody td:first-child{position:sticky;left:0;z-index:1;background:var(--white);}
+.table-scroll thead th:first-child{left:0;z-index:3;}
+.table-scroll tr:hover td:first-child{background:var(--navy-light);}
 th{padding:10px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
 td{padding:10px 12px;border-bottom:1px solid var(--border);}
 tr:last-child td{border-bottom:none;}
@@ -615,18 +623,16 @@ tr:hover td{background:var(--navy-light);}
   </div>
 
   <!-- Tableau -->
-  <div class="table-wrap">
+  <div class="table-wrap table-scroll">
     <table>
       <thead>
         <tr>
           <th>Client</th>
-          <th>Code</th>
           <th>CAF</th>
           <th>Type</th>
           <th>Montant</th>
           <th>Statut actuel</th>
           <th>Depuis le</th>
-          <th>Délai</th>
           <th>Semaine dépôt</th>
           <th></th>
         </tr>
@@ -658,9 +664,9 @@ tr:hover td{background:var(--navy-light);}
       <option value="responsable">👤 Responsable Risque</option>
     </select>
   </div>
-  <div class="table-wrap">
+  <div class="table-wrap table-scroll">
     <table>
-      <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Délai</th><th>Semaine</th><th>Sous-étape</th><th></th></tr></thead>
+      <thead><tr><th>Client</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th>Sous-étape</th><th></th></tr></thead>
       <tbody id="vue-risque-dediee"></tbody>
     </table>
   </div>
@@ -708,9 +714,9 @@ tr:hover td{background:var(--navy-light);}
     </select>
     <button class="btn-export" onclick="exportVueEngagementExcel()">📊 Export Excel</button>
   </div>
-  <div class="table-wrap">
+  <div class="table-wrap table-scroll">
     <table>
-      <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant validé</th><th>Statut</th><th>Suivi conventions</th><th>Depuis le</th><th>Délai</th><th></th></tr></thead>
+      <thead><tr><th>Client</th><th>CAF</th><th>Type</th><th>Montant validé</th><th>Statut</th><th>Suivi conventions</th><th>Depuis le</th><th></th></tr></thead>
       <tbody id="vue-engagement"></tbody>
     </table>
   </div>
@@ -1950,7 +1956,7 @@ function renderVueRisqueDediee() {
 
   const list = getVueRisqueFilteredList();
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
     return;
   }
 
@@ -1958,15 +1964,12 @@ function renderVueRisqueDediee() {
     const montantAff = r.montant_valide
       ? `<strong style="color:var(--success)">${fmtM(r.montant_valide)}</strong>`
       : `<span style="color:var(--muted)">${fmtM(r.montant)}</span>`;
-    const statutDate = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
     return `<tr style="cursor:pointer" onclick="openDosModal(${r.id})">
-      <td><strong>${r.nom || "—"}</strong></td>
-      <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
+      ${getClientCodeCell(r)}
       <td style="font-size:11px">${r.caf}</td>
       <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
       <td class="amount">${fmtM(r.montant)}</td>
       <td>${montantAff}</td>
-      <td style="font-size:11px">${statutDate}</td>
       ${getDelaiCell(r)}
       <td style="font-size:11px">${r.semaine || "—"}</td>
       <td>${getSousStatutRisqueInline(r.sous_statut_risque)}</td>
@@ -2061,24 +2064,21 @@ function renderVueEngagement() {
   const list = getVueEngagementFilteredList();
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📑</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📑</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
     return;
   }
 
   tbody.innerHTML = list.map(r => {
-    const statutDate = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
     const suiviTd = (r.statut_dossier === "vmep" || r.statut_dossier === "regul")
       ? getSousStatutEngagementInline(r.sous_statut_engagement)
       : `<span style="color:var(--muted);font-size:11px">— (MEP déjà décaissé)</span>`;
     return `<tr style="cursor:pointer" onclick="openDosModal(${r.id})">
-      <td><strong>${r.nom || "—"}</strong></td>
-      <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
+      ${getClientCodeCell(r)}
       <td style="font-size:11px">${r.caf}</td>
       <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
       <td class="amount">${fmtM(r.montant_valide || r.montant)}</td>
       <td>${getStatutPill(r.statut_dossier)}</td>
       <td>${suiviTd}</td>
-      <td style="font-size:11px">${statutDate}</td>
       ${getDelaiCell(r)}
       <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
     </tr>`;
@@ -3032,15 +3032,21 @@ function joursOuvresDepuis(dateStr) {
   return jours;
 }
 
-// Colonne "Délai" : nombre de jours ouvrés depuis l'entrée dans le statut actuel
-// (statut_date, à défaut la date de dépôt) — passe en rouge au-delà de 15 jours.
-// Réutilise joursOuvresDepuis(), déjà utilisée pour les alertes CAF.
+// Colonne "Depuis le / Délai" fusionnée : date d'entrée dans le statut actuel + nombre
+// de jours ouvrés depuis cette date (statut_date, à défaut la date de dépôt), en rouge
+// au-delà de 15 jours. Réutilise joursOuvresDepuis(), déjà utilisée pour les alertes CAF.
 function getDelaiCell(r) {
   const dateRef = r.statut_date ? r.statut_date.split("T")[0] : r.date;
   if (!dateRef) return `<td style="font-size:11px;color:var(--muted)">—</td>`;
+  const dateTxt = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
   const jours = joursOuvresDepuis(dateRef);
   const alerte = jours > 15;
-  return `<td style="font-size:11px;font-weight:${alerte ? "700" : "400"};color:${alerte ? "#CC0000" : "var(--muted)"}">${jours}j</td>`;
+  return `<td style="font-size:11px;color:var(--muted);white-space:nowrap">${dateTxt}<br><span style="font-weight:700;color:${alerte ? "#CC0000" : "var(--navy)"}">${jours}j</span></td>`;
+}
+
+// Cellule fusionnée "Client / Code"
+function getClientCodeCell(r) {
+  return `<td><strong>${r.nom || "—"}</strong><br><span style="font-size:10px;color:var(--muted)">${r.code || "—"}</span></td>`;
 }
 
 function getLastSaisieByCAF(data) {
@@ -3574,25 +3580,22 @@ function renderDossiers() {
 
   const tbody = document.getElementById("dos_table");
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-text">Aucun dossier</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-text">Aucun dossier</div></div></td></tr>`;
     return;
   }
 
   tbody.innerHTML = list.map(r => {
     const statut = r.statut_dossier || "exploit";
-    const statutDate = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
     // Montant du dernier intervenant (montant_valide) prioritaire sur le montant déposé à l'origine
     const montantAff = r.montant_valide
       ? `<strong style="color:var(--success)">${fmtM(r.montant_valide)}</strong>`
       : fmtM(r.montant);
     return `<tr style="cursor:pointer" onclick="openDosModal(${r.id})">
-      <td><strong>${r.nom || "—"}</strong></td>
-      <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
+      ${getClientCodeCell(r)}
       <td style="font-size:11px">${r.caf}</td>
       <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
       <td class="amount">${montantAff}</td>
       <td>${getStatutPill(statut)}${getSousStatutBadge(r)}${getSousStatutEngagementBadge(r)}${getSousStatutRisqueBadge(r)}</td>
-      <td style="font-size:11px">${statutDate}</td>
       ${getDelaiCell(r)}
       <td style="font-size:11px">${r.semaine || "—"}</td>
       <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
