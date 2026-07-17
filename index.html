@@ -697,6 +697,13 @@ tr:hover td{background:var(--navy-light);}
       <option value="edition">📝 Conventions en cours d'édition</option>
       <option value="transmis_signature">✍️ Conventions transmises</option>
     </select>
+    <select id="veng_periode_type" onchange="populateVengPeriodes();renderVueEngagementKpis();renderVueEngagement()" style="font-size:12px;padding:8px 12px" title="Période retenue : date de la décision (statut_date)">
+      <option value="mois">Par mois</option>
+      <option value="semaine">Par semaine</option>
+    </select>
+    <select id="veng_periode_value" onchange="renderVueEngagementKpis();renderVueEngagement()" style="font-size:12px;padding:8px 12px">
+      <option value="">Toutes périodes</option>
+    </select>
     <button class="btn-export" onclick="exportVueEngagementExcel()">📊 Export Excel</button>
   </div>
   <div class="table-wrap">
@@ -1728,6 +1735,7 @@ async function refreshAndRenderVueRisque() {
 async function refreshAndRenderVueEngagement() {
   await syncData();
   populateVueEngagementFilters();
+  populateVengPeriodes();
   renderVueEngagementKpis();
   renderVueEngagement();
 }
@@ -1965,6 +1973,8 @@ function getVueEngagementFilteredList() {
   const filterStatut = document.getElementById("veng_filter_statut")?.value || "";
   const filterCaf = document.getElementById("veng_filter_caf")?.value || "";
   const filterSuivi = document.getElementById("veng_filter_suivi")?.value || "";
+  const periodeType = document.getElementById("veng_periode_type")?.value || "mois";
+  const periodeValue = document.getElementById("veng_periode_value")?.value || "";
 
   let list = allData.filter(r => r.mod === "deposes" && ["vmep", "mep", "regul"].includes(r.statut_dossier));
   if (currentRole === "caf") list = list.filter(r => r.caf === currentUser.nom);
@@ -1972,8 +1982,23 @@ function getVueEngagementFilteredList() {
   if (filterStatut) list = list.filter(r => r.statut_dossier === filterStatut);
   if (filterCaf) list = list.filter(r => r.caf === filterCaf);
   if (filterSuivi) list = list.filter(r => r.sous_statut_engagement === filterSuivi);
+  if (periodeValue) list = list.filter(r => getPeriodeKey(r, periodeType) === periodeValue);
   list.sort((a, b) => new Date(b.statut_date || 0) - new Date(a.statut_date || 0));
   return list;
+}
+
+// Alimente le sélecteur de période (semaines ou mois présents parmi les dossiers
+// validés/MEP/régul) — période retenue = date de la décision (statut_date).
+function populateVengPeriodes() {
+  const typeSel = document.getElementById("veng_periode_type");
+  const valueSel = document.getElementById("veng_periode_value");
+  if (!typeSel || !valueSel) return;
+  const type = typeSel.value;
+  let base = allData.filter(r => r.mod === "deposes" && ["vmep", "mep", "regul"].includes(r.statut_dossier));
+  if (currentRole === "caf") base = base.filter(r => r.caf === currentUser.nom);
+  const keys = [...new Set(base.map(r => getPeriodeKey(r, type)).filter(Boolean))].sort().reverse();
+  const cur = valueSel.value;
+  valueSel.innerHTML = '<option value="">Toutes périodes</option>' + keys.map(k => `<option${k === cur ? " selected" : ""}>${k}</option>`).join("");
 }
 
 function populateVueEngagementFilters() {
@@ -1986,10 +2011,15 @@ function populateVueEngagementFilters() {
   sel.innerHTML = '<option value="">Tous les CAF</option>' + cafs.map(c => `<option${c === cur ? " selected" : ""}>${c}</option>`).join("");
 }
 
-// KPI globaux Vue Engagement : non affectés par les filtres de la liste (état des lieux stable)
+// KPI globaux Vue Engagement : non affectés par les filtres de recherche/statut/CAF/suivi
+// (état des lieux stable), mais respectent le filtre de période (semaine/mois) — sinon le
+// compteur "MEP" grossirait indéfiniment depuis le lancement de l'application.
 function renderVueEngagementKpis() {
   let base = allData.filter(r => r.mod === "deposes" && ["vmep", "mep", "regul"].includes(r.statut_dossier));
   if (currentRole === "caf") base = base.filter(r => r.caf === currentUser.nom);
+  const periodeType = document.getElementById("veng_periode_type")?.value || "mois";
+  const periodeValue = document.getElementById("veng_periode_value")?.value || "";
+  if (periodeValue) base = base.filter(r => getPeriodeKey(r, periodeType) === periodeValue);
 
   const vmepRows = base.filter(r => r.statut_dossier === "vmep");
   const regulRows = base.filter(r => r.statut_dossier === "regul");
@@ -2082,6 +2112,9 @@ function buildVueEngagementDataSheet(wb, sheetName, list) {
 function buildVueEngagementKpiSheet(wb) {
   let base = allData.filter(r => r.mod === "deposes" && ["vmep", "mep", "regul"].includes(r.statut_dossier));
   if (currentRole === "caf") base = base.filter(r => r.caf === currentUser.nom);
+  const periodeType = document.getElementById("veng_periode_type")?.value || "mois";
+  const periodeValue = document.getElementById("veng_periode_value")?.value || "";
+  if (periodeValue) base = base.filter(r => getPeriodeKey(r, periodeType) === periodeValue);
 
   const vmepRows = base.filter(r => r.statut_dossier === "vmep");
   const regulRows = base.filter(r => r.statut_dossier === "regul");
@@ -2100,7 +2133,8 @@ function buildVueEngagementKpiSheet(wb) {
   };
 
   setCell("A1", "VUE ENGAGEMENT — KPI", xlStyleTitle());
-  setCell("A2", "Généré le " + new Date().toLocaleDateString("fr-FR"), { font: { italic: true, sz: 10, color: { rgb: "6b7a99" } } });
+  const periodeTxt = periodeValue ? " — Période : " + periodeValue : " — Toutes périodes";
+  setCell("A2", "Généré le " + new Date().toLocaleDateString("fr-FR") + periodeTxt, { font: { italic: true, sz: 10, color: { rgb: "6b7a99" } } });
 
   const kpis = [
     ["Validé en attente", vmepRows.length, vol(vmepRows)],
@@ -3750,15 +3784,17 @@ function renderKpiStatuts() {
   });
 }
 
-// ====== TAUX DE REJET (dossiers défavorables) ======
+// ====== UTILITAIRE PÉRIODE (partagé Taux de rejet + Vue Engagement) ======
 // Période retenue = date de la décision (statut_date), à défaut la date de dépôt —
 // même logique que filterMoisEnCours() pour MEP : on classe un dossier par la date
 // à laquelle il a atteint son statut, pas par sa date de dépôt.
-function getPeriodeKeyRejet(r, type) {
+function getPeriodeKey(r, type) {
   const d = (r.statut_date || r.date || "").split("T")[0];
   if (!d) return null;
   return type === "mois" ? d.substring(0, 7) : getWeek(d);
 }
+
+// ====== TAUX DE REJET (dossiers défavorables) ======
 
 // Base = dossiers ayant une issue définitive (rejetés ou passés en exécution).
 // Les dossiers encore en cours (exploit/risque/validation_dg/vmep/ajourné) ne sont
@@ -3772,7 +3808,7 @@ function populateRejetPeriodes() {
   const periodeSel = document.getElementById("rej_periode");
   if (!typeSel || !periodeSel) return;
   const type = typeSel.value;
-  const keys = [...new Set(getRejetBase().map(r => getPeriodeKeyRejet(r, type)).filter(Boolean))].sort().reverse();
+  const keys = [...new Set(getRejetBase().map(r => getPeriodeKey(r, type)).filter(Boolean))].sort().reverse();
   const cur = periodeSel.value;
   periodeSel.innerHTML = '<option value="">Toutes périodes</option>' + keys.map(k => `<option${k === cur ? " selected" : ""}>${k}</option>`).join("");
 }
@@ -3786,7 +3822,7 @@ function renderTauxRejet() {
   const type = document.getElementById("rej_type").value;
   const periode = document.getElementById("rej_periode").value;
   const base = getRejetBase();
-  const scoped = periode ? base.filter(r => getPeriodeKeyRejet(r, type) === periode) : base;
+  const scoped = periode ? base.filter(r => getPeriodeKey(r, type) === periode) : base;
   const defavRows = scoped.filter(r => r.statut_dossier === "defavorable");
 
   countEl.textContent = defavRows.length;
