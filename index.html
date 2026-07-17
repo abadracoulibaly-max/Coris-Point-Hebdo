@@ -838,6 +838,29 @@ tr:hover td{background:var(--navy-light);}
       </div>
     </div>
   </div>
+  <!-- Analyse des rejets -->
+  <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px">
+    <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">❌ Analyse des dossiers défavorables — Taux de rejet</div>
+    <div class="filter-bar">
+      <select id="rej_type" onchange="populateRejetPeriodes();renderTauxRejet()">
+        <option value="semaine">Par semaine</option>
+        <option value="mois">Par mois</option>
+      </select>
+      <select id="rej_periode" onchange="renderTauxRejet()"><option value="">Toutes périodes</option></select>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0">
+      <div style="background:#fef2f2;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#CC0000" id="rej_count">—</div>
+        <div style="font-size:10px;color:#CC0000;font-weight:600;margin-top:3px">Dossiers défavorables</div>
+      </div>
+      <div style="background:#fef2f2;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#CC0000" id="rej_taux">—</div>
+        <div style="font-size:10px;color:#CC0000;font-weight:600;margin-top:3px">Taux de rejet <span title="Défavorables ÷ (Défavorables + MEP + MEP à régulariser) sur la période">ⓘ</span></div>
+      </div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Date décision</th></tr></thead><tbody id="rej_table"></tbody></table></div>
+  </div>
+
   <div class="filter-bar">
     <select id="dash_sem" onchange="renderDashboard()"><option value="">Toutes semaines</option></select>
     <select id="dash_caf" onchange="renderDashboard()"><option value="">Tous CAF</option><option>OUATTARA Aboubakary</option><option>ONUIYAEGU Kevin Joseph</option><option>KOUAKOU Cynthia</option><option>BAYO Abou</option><option>KONÉ Mohamed</option><option>BAMBA Bassirou</option><option>CISSÉ David</option><option>COULIBALY Marie-Edwige</option><option>GOLI Cédric</option><option>KPADJIRO Michel</option><option>KANGA Jodel</option><option>YAO Armel</option><option>KOUADIO Marie Ange</option><option>KAMAGATE Ali</option><option>COMPAORÉ Aïda</option><option>SORO Felicité</option><option>DJÈ Jean Charles</option><option>DRAMAN Jean Michel</option><option>YOUL Sansan</option><option>NIKIEMA Bénédicte</option><option>KOUACOU Claire</option><option>TIA Natacha</option><option>KAMATÉ Tahibatou</option></select>
@@ -2369,6 +2392,8 @@ async function renderDashboard(){
 
   // Mise à jour des KPI par statut en temps réel
   renderKpiStatuts();
+  populateRejetPeriodes();
+  renderTauxRejet();
 
   const rows=getRowsForMod(mod,sem,caf);
   document.getElementById("dashHead").innerHTML="<tr><th>Semaine</th><th>Date</th><th>CAF</th><th>Code</th><th>Client</th><th>Type</th><th>Montant</th><th>Durée</th><th>Obs.</th><th></th></tr>";
@@ -3716,6 +3741,62 @@ function renderKpiStatuts() {
     const el2 = document.getElementById("kpi_statut_" + key);
     if (el2) el2.textContent = count;
   });
+}
+
+// ====== TAUX DE REJET (dossiers défavorables) ======
+// Période retenue = date de la décision (statut_date), à défaut la date de dépôt —
+// même logique que filterMoisEnCours() pour MEP : on classe un dossier par la date
+// à laquelle il a atteint son statut, pas par sa date de dépôt.
+function getPeriodeKeyRejet(r, type) {
+  const d = (r.statut_date || r.date || "").split("T")[0];
+  if (!d) return null;
+  return type === "mois" ? d.substring(0, 7) : getWeek(d);
+}
+
+// Base = dossiers ayant une issue définitive (rejetés ou passés en exécution).
+// Les dossiers encore en cours (exploit/risque/validation_dg/vmep/ajourné) ne sont
+// pas comptés : ils n'ont pas encore de décision, les inclure fausserait le taux.
+function getRejetBase() {
+  return allData.filter(r => r.mod === "deposes" && ["defavorable", "mep", "regul"].includes(r.statut_dossier));
+}
+
+function populateRejetPeriodes() {
+  const typeSel = document.getElementById("rej_type");
+  const periodeSel = document.getElementById("rej_periode");
+  if (!typeSel || !periodeSel) return;
+  const type = typeSel.value;
+  const keys = [...new Set(getRejetBase().map(r => getPeriodeKeyRejet(r, type)).filter(Boolean))].sort().reverse();
+  const cur = periodeSel.value;
+  periodeSel.innerHTML = '<option value="">Toutes périodes</option>' + keys.map(k => `<option${k === cur ? " selected" : ""}>${k}</option>`).join("");
+}
+
+function renderTauxRejet() {
+  const countEl = document.getElementById("rej_count");
+  const tauxEl = document.getElementById("rej_taux");
+  const tbody = document.getElementById("rej_table");
+  if (!countEl || !tauxEl || !tbody) return;
+
+  const type = document.getElementById("rej_type").value;
+  const periode = document.getElementById("rej_periode").value;
+  const base = getRejetBase();
+  const scoped = periode ? base.filter(r => getPeriodeKeyRejet(r, type) === periode) : base;
+  const defavRows = scoped.filter(r => r.statut_dossier === "defavorable");
+
+  countEl.textContent = defavRows.length;
+  tauxEl.textContent = scoped.length ? Math.round((defavRows.length / scoped.length) * 100) + "%" : "—";
+
+  if (!defavRows.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun dossier défavorable sur cette période</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = defavRows.map(r => `<tr style="cursor:pointer" onclick="openDosModal(${r.id})">
+    <td><strong>${r.nom || "—"}</strong></td>
+    <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
+    <td style="font-size:11px">${r.caf || "—"}</td>
+    <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
+    <td class="amount">${fmtM(r.montant_valide || r.montant)}</td>
+    <td style="font-size:11px">${r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—"}</td>
+  </tr>`).join("");
 }
 
 // ====== EXPORT CSV DOSSIERS ======
