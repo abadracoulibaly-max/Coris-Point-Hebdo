@@ -2271,21 +2271,27 @@ function populateSuiviSem(){
   sel.innerHTML='<option value="">-- Sélectionner une semaine --</option>'+sems.map(s=>`<option${s===cur?" selected":""}>${s}</option>`).join("");
 }
 
-async function renderSuivi(){
-  if(!document.getElementById("suivi_sem").value) return;
-  const sem=document.getElementById("suivi_sem").value;
-  await syncData();
-
+// Source unique de données pour l'affichage et l'export du Suivi Hebdo (évite que
+// l'export se contente de recopier le texte déjà mis en forme affiché à l'écran).
+function computeSuiviRows(sem){
   const CAF_LIST=["OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou","KONÉ Mohamed","BAMBA Bassirou","CISSÉ David","COULIBALY Marie-Edwige","GOLI Cédric","KPADJIRO Michel","KANGA Jodel","YAO Armel","KOUADIO Marie Ange","KAMAGATE Ali","COMPAORÉ Aïda","SORO Felicité","DJÈ Jean Charles","DRAMAN Jean Michel","YOUL Sansan","NIKIEMA Bénédicte","KOUACOU Claire","TIA Natacha","KAMATÉ Tahibatou"];
   // Filtrer par semaine (champ semaine OU recalcul depuis date)
   const prevus=allData.filter(r=>r.mod==="comite"&&(r.semaine===sem||(r.date&&getWeek(r.date.split("T")[0])===sem)));
   const deposes=allData.filter(r=>r.mod==="deposes"&&(r.semaine===sem||(r.date&&getWeek(r.date.split("T")[0])===sem)));
 
-  const data=CAF_LIST.map(caf=>{
+  return CAF_LIST.map(caf=>{
     const p=prevus.filter(r=>r.caf===caf);
     const d=deposes.filter(r=>r.caf===caf);
     return{caf,nb_prevu:p.length,nb_realise:d.length,vol_prevu:p.reduce((s,r)=>s+(r.montant||0),0),vol_realise:d.reduce((s,r)=>s+(r.montant||0),0),ecart_nb:d.length-p.length,ecart_vol:d.reduce((s,r)=>s+(r.montant||0),0)-p.reduce((s,r)=>s+(r.montant||0),0)};
   }).filter(r=>r.nb_prevu>0||r.nb_realise>0);
+}
+
+async function renderSuivi(){
+  if(!document.getElementById("suivi_sem").value) return;
+  const sem=document.getElementById("suivi_sem").value;
+  await syncData();
+
+  const data=computeSuiviRows(sem);
 
   const tot_prevu=data.reduce((s,r)=>s+r.nb_prevu,0);
   const tot_realise=data.reduce((s,r)=>s+r.nb_realise,0);
@@ -2459,7 +2465,40 @@ function toCSV(rows){
 }
 function dl(content,name){const b=new Blob(["\uFEFF"+content],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();}
 function exportCSV(){const mod=document.getElementById("dash_mod").value;const sem=document.getElementById("dash_sem").value;const caf=document.getElementById("dash_caf").value;const rows=getRowsForMod(mod,sem,caf);if(!rows.length){toast("Aucune donnée","error");return;}dl(toCSV(rows),"CMF_"+mod+"_"+(sem||"tout")+".csv");toast("Export téléchargé");}
-function exportSuivi(){const sem=document.getElementById("suivi_sem").value;if(!sem){toast("Sélectionnez une semaine","error");return;}const rows=document.querySelectorAll("#suiviTable tr");const csv=["CAF;Prévus;Vol.Prévu;Déposés;Vol.Déposé;Écart Nbre;Écart Volume;Statut"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim());if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Suivi_"+sem.replace(" ","_")+".csv");toast("Export téléchargé");}
+function exportSuivi(){
+  const sem=document.getElementById("suivi_sem").value;
+  if(!sem){toast("Sélectionnez une semaine","error");return;}
+  const data=computeSuiviRows(sem);
+  if(!data.length){toast("Aucune donnée","error");return;}
+
+  const statutTxt=r=>{
+    if(r.nb_prevu===0) return "Non planifié";
+    if(r.nb_realise===0) return "Aucun dépôt";
+    return r.ecart_nb>=0 ? "Objectif atteint" : "En retard";
+  };
+
+  const tot_prevu=data.reduce((s,r)=>s+r.nb_prevu,0);
+  const tot_realise=data.reduce((s,r)=>s+r.nb_realise,0);
+  const tot_vol_prevu=data.reduce((s,r)=>s+r.vol_prevu,0);
+  const tot_vol_realise=data.reduce((s,r)=>s+r.vol_realise,0);
+  const ecart=tot_realise-tot_prevu;
+  const ecart_vol=tot_vol_realise-tot_vol_prevu;
+
+  // Valeurs numériques brutes (pas de mise en forme "M"/"K") pour rester exploitables
+  // dans Excel — cf. même correctif appliqué à l'export du Récap Mensuel.
+  const headers=["CAF","Prévu (nb)","Vol. prévu","Réalisé (nb)","Vol. réalisé","Écart nb","% nb","Écart vol","% vol","Statut"];
+  const dataRows=data.map(r=>{
+    const pct_nb = r.nb_prevu>0 ? Math.round((r.nb_realise/r.nb_prevu)*100) : "";
+    const pct_vol = r.vol_prevu>0 ? Math.round((r.vol_realise/r.vol_prevu)*100) : "";
+    return [r.caf, r.nb_prevu, r.vol_prevu, r.nb_realise, r.vol_realise, r.ecart_nb, pct_nb, r.ecart_vol, pct_vol, statutTxt(r)];
+  });
+  const totalRow=["TOTAL", tot_prevu, tot_vol_prevu, tot_realise, tot_vol_realise, ecart,
+    tot_prevu>0?Math.round(tot_realise/tot_prevu*100):"", ecart_vol,
+    tot_vol_prevu>0?Math.round(tot_vol_realise/tot_vol_prevu*100):"", ""];
+  const csv=[headers,...dataRows,totalRow].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
+  dl(csv,"CMF_Suivi_"+sem.replace(" ","_")+".csv");
+  toast("Export téléchargé");
+}
 function exportMensuel(){
   const mois=document.getElementById("mens_mois").value;
   if(!mois){toast("Sélectionnez un mois","error");return;}
