@@ -840,7 +840,7 @@ tr:hover td{background:var(--navy-light);}
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>CAF</th><th>Nb dossiers</th><th>Volume total</th><th>BFR</th><th>INVEST</th><th>MICRO</th><th>Ticket moyen</th><th>% volume</th></tr></thead>
+      <thead><tr><th>CAF</th><th>Nb dossiers</th><th>Volume total</th><th>BFR</th><th>INVEST</th><th>MICRO</th><th>Causé</th><th>EPS</th><th>Conso</th><th>Agri</th><th>Ticket moyen</th><th>% volume</th></tr></thead>
       <tbody id="mensuelTable"></tbody>
     </table>
   </div>
@@ -2354,20 +2354,33 @@ function populateMoisSel(){
   }).join("");
 }
 
+// Types de crédit affichés en colonnes sur le Récap Mensuel — doit couvrir les 7 types
+// proposés à la saisie (cf. boutons credit-type-group), sinon les dossiers des types
+// non listés ici sont comptés dans le total mais disparaissent de la répartition visible.
+const CREDIT_TYPES = ["BFR","INVEST","MICRO","Causé","EPS","Conso","Agri"];
+
+// Source unique de données pour l'affichage et l'export du Récap Mensuel (évite que
+// l'export se contente de recopier le texte déjà mis en forme affiché à l'écran).
+function computeMensuelRows(mois){
+  const deposes=allData.filter(r=>r.mod==="deposes"&&r.date&&r.date.split("T")[0].startsWith(mois));
+  const cafMap={};
+  deposes.forEach(r=>{
+    if(!cafMap[r.caf]){
+      cafMap[r.caf]={caf:r.caf,nb:0,vol:0};
+      CREDIT_TYPES.forEach(t=>cafMap[r.caf][t]=0);
+    }
+    cafMap[r.caf].nb++;cafMap[r.caf].vol+=(r.montant||0);
+    if(r.type && cafMap[r.caf][r.type]!==undefined) cafMap[r.caf][r.type]++;
+  });
+  return Object.values(cafMap).sort((a,b)=>b.vol-a.vol);
+}
+
 async function renderMensuel(){
   const mois=document.getElementById("mens_mois").value;
   if(!mois)return;
   await syncData();
 
-  const deposes=allData.filter(r=>r.mod==="deposes"&&r.date&&r.date.split("T")[0].startsWith(mois));
-  const cafMap={};
-  deposes.forEach(r=>{
-    if(!cafMap[r.caf])cafMap[r.caf]={caf:r.caf,nb:0,vol:0,BFR:0,INVEST:0,MICRO:0};
-    cafMap[r.caf].nb++;cafMap[r.caf].vol+=(r.montant||0);
-    if(r.type)cafMap[r.caf][r.type]=(cafMap[r.caf][r.type]||0)+1;
-  });
-
-  const rows=Object.values(cafMap).sort((a,b)=>b.vol-a.vol);
+  const rows=computeMensuelRows(mois);
   const totVol=rows.reduce((s,r)=>s+r.vol,0);
   const totNb=rows.reduce((s,r)=>s+r.nb,0);
 
@@ -2376,21 +2389,20 @@ async function renderMensuel(){
   document.getElementById("mn_moyen").textContent=totNb?fmtM(totVol/totNb):"—";
   document.getElementById("mn_cafs").textContent=rows.length;
 
-  if(!rows.length){document.getElementById("mensuelTable").innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">Aucun dossier ce mois</div></div></td></tr>';return;}
+  if(!rows.length){document.getElementById("mensuelTable").innerHTML='<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">Aucun dossier ce mois</div></div></td></tr>';return;}
 
   document.getElementById("mensuelTable").innerHTML=rows.map(r=>{
     const pct=totVol?((r.vol/totVol)*100).toFixed(1):0;
+    const typeCells=CREDIT_TYPES.map(t=>`<td style="text-align:center"><span class="badge badge-${t}">${r[t]||0}</span></td>`).join("");
     return `<tr>
       <td style="font-weight:600;font-size:12px">${r.caf}</td>
       <td style="text-align:center;font-weight:700;font-size:15px;color:var(--navy)">${r.nb}</td>
       <td style="text-align:right" class="amount">${fmt(r.vol)}</td>
-      <td style="text-align:center"><span class="badge badge-BFR">${r.BFR||0}</span></td>
-      <td style="text-align:center"><span class="badge badge-INVEST">${r.INVEST||0}</span></td>
-      <td style="text-align:center"><span class="badge badge-MICRO">${r.MICRO||0}</span></td>
+      ${typeCells}
       <td style="text-align:right">${fmtM(r.nb?r.vol/r.nb:0)}</td>
       <td><div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:var(--border);border-radius:4px;height:6px"><div style="width:${pct}%;background:var(--blue);border-radius:4px;height:6px"></div></div><span style="font-size:11px;font-weight:600;color:var(--navy);white-space:nowrap">${pct}%</span></div></td>
     </tr>`;
-  }).join("")+`<tr style="background:var(--navy-light);font-weight:700"><td>TOTAL</td><td style="text-align:center">${totNb}</td><td style="text-align:right">${fmt(totVol)}</td><td style="text-align:center">${rows.reduce((s,r)=>s+(r.BFR||0),0)}</td><td style="text-align:center">${rows.reduce((s,r)=>s+(r.INVEST||0),0)}</td><td style="text-align:center">${rows.reduce((s,r)=>s+(r.MICRO||0),0)}</td><td style="text-align:right">${fmtM(totNb?totVol/totNb:0)}</td><td style="text-align:center">100%</td></tr>`;
+  }).join("")+`<tr style="background:var(--navy-light);font-weight:700"><td>TOTAL</td><td style="text-align:center">${totNb}</td><td style="text-align:right">${fmt(totVol)}</td>${CREDIT_TYPES.map(t=>`<td style="text-align:center">${rows.reduce((s,r)=>s+(r[t]||0),0)}</td>`).join("")}<td style="text-align:right">${fmtM(totNb?totVol/totNb:0)}</td><td style="text-align:center">100%</td></tr>`;
 }
 
 // ====== SYNTHESE ======
@@ -2448,7 +2460,25 @@ function toCSV(rows){
 function dl(content,name){const b=new Blob(["\uFEFF"+content],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();}
 function exportCSV(){const mod=document.getElementById("dash_mod").value;const sem=document.getElementById("dash_sem").value;const caf=document.getElementById("dash_caf").value;const rows=getRowsForMod(mod,sem,caf);if(!rows.length){toast("Aucune donnée","error");return;}dl(toCSV(rows),"CMF_"+mod+"_"+(sem||"tout")+".csv");toast("Export téléchargé");}
 function exportSuivi(){const sem=document.getElementById("suivi_sem").value;if(!sem){toast("Sélectionnez une semaine","error");return;}const rows=document.querySelectorAll("#suiviTable tr");const csv=["CAF;Prévus;Vol.Prévu;Déposés;Vol.Déposé;Écart Nbre;Écart Volume;Statut"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim());if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Suivi_"+sem.replace(" ","_")+".csv");toast("Export téléchargé");}
-function exportMensuel(){const mois=document.getElementById("mens_mois").value;if(!mois){toast("Sélectionnez un mois","error");return;}const rows=document.querySelectorAll("#mensuelTable tr");const csv=["CAF;Nb;Volume;BFR;INVEST;MICRO;Ticket moyen;% volume"];rows.forEach(r=>{const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim().replace(/\s+/g," "));if(cells.length)csv.push(cells.join(";"));});dl(csv.join("\n"),"CMF_Mensuel_"+mois+".csv");toast("Export téléchargé");}
+function exportMensuel(){
+  const mois=document.getElementById("mens_mois").value;
+  if(!mois){toast("Sélectionnez un mois","error");return;}
+  const rows=computeMensuelRows(mois);
+  if(!rows.length){toast("Aucune donnée","error");return;}
+  const totVol=rows.reduce((s,r)=>s+r.vol,0);
+  const totNb=rows.reduce((s,r)=>s+r.nb,0);
+  // Valeurs numériques brutes (pas de séparateur de milliers ni d'abréviation "M"/"K")
+  // pour que le fichier reste directement exploitable dans Excel (somme, TCD, graphique).
+  const headers=["CAF","Nb","Volume",...CREDIT_TYPES,"Ticket moyen","% volume"];
+  const dataRows=rows.map(r=>{
+    const pct=totVol?((r.vol/totVol)*100).toFixed(1):0;
+    return [r.caf, r.nb, r.vol, ...CREDIT_TYPES.map(t=>r[t]||0), r.nb?Math.round(r.vol/r.nb):0, pct];
+  });
+  const totalRow=["TOTAL", totNb, totVol, ...CREDIT_TYPES.map(t=>rows.reduce((s,r)=>s+(r[t]||0),0)), totNb?Math.round(totVol/totNb):0, 100];
+  const csv=[headers,...dataRows,totalRow].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
+  dl(csv,"CMF_Mensuel_"+mois+".csv");
+  toast("Export téléchargé");
+}
 // ════════════════════════════════════════════════════════
 // EXPORT EXCEL PROFESSIONNEL — TCD + COULEURS + MULTI-FEUILLES
 // ════════════════════════════════════════════════════════
