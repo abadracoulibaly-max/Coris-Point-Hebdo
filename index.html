@@ -670,10 +670,11 @@ tr:hover td{background:var(--navy-light);}
     <div class="section-title">📑 Vue Engagement</div>
     <div class="section-desc">Dossiers validés (Validé en attente, MEP, MEP à régulariser) — cliquez pour indiquer où en sont les conventions</div>
   </div>
-  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">
+  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
     <div class="kpi-card blue"><div class="kpi-label">Validé en attente</div><div class="kpi-value" id="veng_kpi_vmep">—</div><div class="kpi-sub" id="veng_kpi_vmep_vol">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">En attente dossier physique</div><div class="kpi-value" id="veng_kpi_attente_physique">—</div><div class="kpi-sub">non reçu</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Dossier Incomplet</div><div class="kpi-value" id="veng_kpi_attente_doc">—</div><div class="kpi-sub">documentation</div></div>
     <div class="kpi-card gold"><div class="kpi-label">Convention en cours</div><div class="kpi-value" id="veng_kpi_edition">—</div><div class="kpi-sub">édition</div></div>
-    <div class="kpi-card red"><div class="kpi-label">En attente de documentation</div><div class="kpi-value" id="veng_kpi_attente_doc">—</div><div class="kpi-sub">documentation</div></div>
     <div class="kpi-card"><div class="kpi-label">Convention transmise</div><div class="kpi-value" id="veng_kpi_transmis">—</div><div class="kpi-sub">attente signature</div></div>
     <div class="kpi-card"><div class="kpi-label">MEP à régulariser</div><div class="kpi-value" id="veng_kpi_regul">—</div><div class="kpi-sub" id="veng_kpi_regul_vol">—</div></div>
     <div class="kpi-card"><div class="kpi-label">MEP</div><div class="kpi-value" id="veng_kpi_mep">—</div><div class="kpi-sub" id="veng_kpi_mep_vol">—</div></div>
@@ -691,7 +692,8 @@ tr:hover td{background:var(--navy-light);}
     </select>
     <select id="veng_filter_suivi" onchange="renderVueEngagement()" style="font-size:12px;padding:8px 12px">
       <option value="">Tous les suivis conventions</option>
-      <option value="attente_documentation">📄 En attente de documentation</option>
+      <option value="attente_dossier_physique">📦 En attente dossier physique</option>
+      <option value="attente_documentation">📄 Dossier Incomplet</option>
       <option value="edition">📝 Conventions en cours d'édition</option>
       <option value="transmis_signature">✍️ Conventions transmises</option>
     </select>
@@ -752,7 +754,8 @@ tr:hover td{background:var(--navy-light);}
         <div id="dos_sous_statut_engagement_wrap" style="display:none;margin-top:10px">
           <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Suivi conventions (Engagement)</label>
           <select id="dos_new_sous_statut_engagement" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
-            <option value="attente_documentation">📄 En attente de documentation</option>
+            <option value="attente_dossier_physique">📦 En attente dossier physique</option>
+            <option value="attente_documentation">📄 Dossier Incomplet</option>
             <option value="edition">📝 Conventions en cours d'édition</option>
             <option value="transmis_signature">✍️ Conventions transmises — attente signature</option>
           </select>
@@ -1992,6 +1995,7 @@ function renderVueEngagementKpis() {
   const regulRows = base.filter(r => r.statut_dossier === "regul");
   const mepRows = base.filter(r => r.statut_dossier === "mep");
   const conventionRows = base.filter(r => r.statut_dossier === "vmep" || r.statut_dossier === "regul");
+  const attentePhysiqueRows = conventionRows.filter(r => r.sous_statut_engagement === "attente_dossier_physique");
   const editionRows = conventionRows.filter(r => r.sous_statut_engagement === "edition");
   const attenteDocRows = conventionRows.filter(r => r.sous_statut_engagement === "attente_documentation");
   const transmisRows = conventionRows.filter(r => r.sous_statut_engagement === "transmis_signature");
@@ -2000,6 +2004,7 @@ function renderVueEngagementKpis() {
 
   document.getElementById("veng_kpi_vmep").textContent = vmepRows.length;
   document.getElementById("veng_kpi_vmep_vol").textContent = vol(vmepRows);
+  document.getElementById("veng_kpi_attente_physique").textContent = attentePhysiqueRows.length;
   document.getElementById("veng_kpi_edition").textContent = editionRows.length;
   document.getElementById("veng_kpi_attente_doc").textContent = attenteDocRows.length;
   document.getElementById("veng_kpi_transmis").textContent = transmisRows.length;
@@ -2082,6 +2087,7 @@ function buildVueEngagementKpiSheet(wb) {
   const regulRows = base.filter(r => r.statut_dossier === "regul");
   const mepRows = base.filter(r => r.statut_dossier === "mep");
   const conventionRows = base.filter(r => r.statut_dossier === "vmep" || r.statut_dossier === "regul");
+  const attentePhysiqueRows = conventionRows.filter(r => r.sous_statut_engagement === "attente_dossier_physique");
   const editionRows = conventionRows.filter(r => r.sous_statut_engagement === "edition");
   const attenteDocRows = conventionRows.filter(r => r.sous_statut_engagement === "attente_documentation");
   const transmisRows = conventionRows.filter(r => r.sous_statut_engagement === "transmis_signature");
@@ -2098,8 +2104,9 @@ function buildVueEngagementKpiSheet(wb) {
 
   const kpis = [
     ["Validé en attente", vmepRows.length, vol(vmepRows)],
+    ["En attente dossier physique", attentePhysiqueRows.length, ""],
+    ["Dossier Incomplet", attenteDocRows.length, ""],
     ["Convention en cours d'édition", editionRows.length, ""],
-    ["En attente de documentation", attenteDocRows.length, ""],
     ["Convention transmise — attente signature", transmisRows.length, ""],
     ["MEP à régulariser", regulRows.length, vol(regulRows)],
     ["MEP", mepRows.length, vol(mepRows)]
@@ -3410,9 +3417,10 @@ const SOUS_STATUTS_EXPLOIT = {
 // applicables tant que le dossier est Validé en attente ou MEP à régulariser
 // (une fois en MEP, le décaissement a eu lieu donc les conventions sont forcément signées)
 const SOUS_STATUTS_ENGAGEMENT = {
-  attente_documentation: { l: "En attente de documentation",              icon: "📄" },
-  edition:               { l: "Conventions en cours d'édition",          icon: "📝" },
-  transmis_signature:    { l: "Conventions transmises — attente signature", icon: "✍️" }
+  attente_dossier_physique: { l: "En attente dossier physique",           icon: "📦" },
+  attente_documentation:    { l: "Dossier Incomplet",                     icon: "📄" },
+  edition:                  { l: "Conventions en cours d'édition",       icon: "📝" },
+  transmis_signature:       { l: "Conventions transmises — attente signature", icon: "✍️" }
 };
 
 // Sous-étapes internes au stade "Au risque" (service Risque)
@@ -3555,7 +3563,7 @@ function openDosModal(id) {
   document.getElementById("dos_new_montant").value = r.montant_valide || "";
   document.getElementById("dos_new_duree").value = r.duree_validee || "";
   document.getElementById("dos_new_sous_statut").value = r.sous_statut_exploit || "chef_agence";
-  document.getElementById("dos_new_sous_statut_engagement").value = r.sous_statut_engagement || "attente_documentation";
+  document.getElementById("dos_new_sous_statut_engagement").value = r.sous_statut_engagement || "attente_dossier_physique";
   document.getElementById("dos_new_sous_statut_risque").value = r.sous_statut_risque || "analyste";
   toggleDosSousStatut();
 
@@ -3640,7 +3648,7 @@ async function saveStatutDossier() {
   const newMontant = parseInt(document.getElementById("dos_new_montant").value) || null;
   const newDuree = parseInt(document.getElementById("dos_new_duree").value) || null;
   const newSousStatut = newStatut === "exploit" ? (document.getElementById("dos_new_sous_statut")?.value || "chef_agence") : null;
-  const newSousStatutEngagement = (newStatut === "vmep" || newStatut === "regul") ? (document.getElementById("dos_new_sous_statut_engagement")?.value || "attente_documentation") : null;
+  const newSousStatutEngagement = (newStatut === "vmep" || newStatut === "regul") ? (document.getElementById("dos_new_sous_statut_engagement")?.value || "attente_dossier_physique") : null;
   const newSousStatutRisque = newStatut === "risque" ? (document.getElementById("dos_new_sous_statut_risque")?.value || "analyste") : null;
 
   if(!isValidDateYear(newDate)){toast("Année de date invalide — vérifiez le champ date (ex: 2026, pas 26)","error");return;}
