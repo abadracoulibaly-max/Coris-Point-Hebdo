@@ -342,15 +342,15 @@ tr:hover td{background:var(--navy-light);}
 <div class="module-bar" id="moduleBar">
   <button class="mod-chip active" onclick="showModule('deposes',this)">📥 Déposés</button>
   <button class="mod-chip" onclick="showModule('comite',this)">📋 Prévisions Comité</button>
-  <button class="mod-chip" onclick="showModule('risque',this)">🔍 Analyse Risque</button>
-  <button class="mod-chip" onclick="showModule('validation_dg',this)">🏛️ Validation DG</button>
-  <button class="mod-chip" onclick="showModule('exploit',this)">⚙️ Analyse Exploitation</button>
-  <button class="mod-chip" onclick="showModule('vmep',this)">✅ Validés Non MEP</button>
-  <button class="mod-chip" onclick="showModule('pipeline',this)">🔄 Pipeline</button>
-  <button class="mod-chip" onclick="showModule('mep',this)">💰 MEP du Mois</button>
-  <button class="mod-chip" onclick="showModule('regul',this)">⏳ Régularisation</button>
-  <button class="mod-chip" onclick="showModule('ajourne',this)">⏸️ Ajournés</button>
-  <button class="mod-chip" onclick="showModule('defavorable',this)">❌ Défavorables</button>
+  <button class="mod-chip manager-only" onclick="showModule('risque',this)">🔍 Analyse Risque</button>
+  <button class="mod-chip manager-only" onclick="showModule('validation_dg',this)">🏛️ Validation DG</button>
+  <button class="mod-chip manager-only" onclick="showModule('exploit',this)">⚙️ Analyse Exploitation</button>
+  <button class="mod-chip manager-only" onclick="showModule('vmep',this)">✅ Validés Non MEP</button>
+  <button class="mod-chip manager-only" onclick="showModule('pipeline',this)">🔄 Pipeline</button>
+  <button class="mod-chip manager-only" onclick="showModule('mep',this)">💰 MEP du Mois</button>
+  <button class="mod-chip manager-only" onclick="showModule('regul',this)">⏳ Régularisation</button>
+  <button class="mod-chip manager-only" onclick="showModule('ajourne',this)">⏸️ Ajournés</button>
+  <button class="mod-chip manager-only" onclick="showModule('defavorable',this)">❌ Défavorables</button>
 </div>
 
 <div class="main">
@@ -603,7 +603,6 @@ tr:hover td{background:var(--navy-light);}
     <input type="text" id="dos_search" placeholder="🔍 Rechercher un client, code client..." oninput="renderDossiers()" style="flex:2;min-width:180px;padding:8px 12px;font-size:12px">
     <select id="dos_filter_statut" onchange="renderDossiers()" style="font-size:12px;padding:8px 12px">
       <option value="">Tous les statuts</option>
-      <option value="depose">Déposé</option>
       <option value="exploit">À l'exploitation</option>
       <option value="risque">Au risque</option>
       <option value="validation_dg">Validation DG</option>
@@ -732,7 +731,6 @@ tr:hover td{background:var(--navy-light);}
           <div>
             <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Nouveau statut</label>
             <select id="dos_new_statut" onchange="toggleDosSousStatut()" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
-              <option value="depose">Déposé</option>
               <option value="exploit">À l'exploitation</option>
               <option value="risque">Au risque</option>
               <option value="validation_dg">Validation DG</option>
@@ -811,10 +809,6 @@ tr:hover td{background:var(--navy-light);}
   <div id="dash_kpi_statuts" style="margin-bottom:20px">
     <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">📊 Répartition des dossiers par statut actuel</div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
-      <div style="background:#E8EEF7;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('depose')">
-        <div style="font-size:20px;font-weight:700;color:#1A3A7A" id="kpi_statut_depose">—</div>
-        <div style="font-size:10px;color:#1A3A7A;font-weight:600;margin-top:3px">📥 Déposés</div>
-      </div>
       <div style="background:#fffbeb;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('exploit')">
         <div style="font-size:20px;font-weight:700;color:#92400e" id="kpi_statut_exploit">—</div>
         <div style="font-size:10px;color:#92400e;font-weight:600;margin-top:3px">⚙️ Exploitation</div>
@@ -1824,7 +1818,7 @@ function renderVueModule(mod, targetId) {
   const tbody = document.getElementById(targetId || ("vue-" + mod));
   if (!tbody) return;
 
-  let list = allData.filter(r => r.mod === "deposes" && (r.statut_dossier || "depose") === statut);
+  let list = allData.filter(r => r.mod === "deposes" && (r.statut_dossier || "exploit") === statut);
   if (currentRole === "caf") list = list.filter(r => r.caf === currentUser.nom);
 
   const colspan = (mod === "exploit" || mod === "risque") ? 10 : 9;
@@ -2165,6 +2159,25 @@ async function saveRecord(mod){
     duree:parseInt(g("duree"))||null,secteur:g("secteur")||null,
     obs:g("obs")||null,comtype:g("comtype")||null,stade:g("stade")||null,
     ref:g("ref")||null,deadline:g("deadline")||null};
+
+  // Un dossier déposé entre directement en Exploitation, sous-étape Chef d'agence
+  // (le statut "Déposé" n'existe plus comme étape à part entière).
+  if (mod === "deposes") {
+    row.statut_dossier = "exploit";
+    row.sous_statut_exploit = "chef_agence";
+    row.statut_date = new Date().toISOString();
+    row.statut_historique = [{
+      statut: "exploit",
+      sous_statut_exploit: "chef_agence",
+      sous_statut_engagement: null,
+      sous_statut_risque: null,
+      date,
+      user: currentUser.nom,
+      commentaire: "Dossier déposé",
+      montant_valide: null,
+      duree_validee: null
+    }];
+  }
 
   try {
     await sbInsert(row);
@@ -3339,7 +3352,6 @@ function getMepRows(mois, caf) {
 // ====== SUIVI DOSSIERS — CYCLE DE VIE ======
 
 const STATUTS_DOSSIER = {
-  depose:        { l: "Déposé",              icon: "📥", color: "#1A3A7A", bg: "#E8EEF7" },
   exploit:       { l: "À l'exploitation",    icon: "⚙️", color: "#92400e", bg: "#fffbeb" },
   risque:        { l: "Au risque",           icon: "🔍", color: "#9d174d", bg: "#fce7f3" },
   validation_dg: { l: "Validation DG",       icon: "🏛️", color: "#7c3aed", bg: "#f5f3ff" },
@@ -3412,10 +3424,10 @@ function getSousStatutRisqueBadge(r) {
 }
 
 // Ordre de priorité pour la migration (du plus avancé au moins avancé)
-const STATUT_PRIORITY = ["mep", "regul", "vmep", "risque", "exploit", "ajourne", "defavorable", "depose"];
+const STATUT_PRIORITY = ["mep", "regul", "vmep", "validation_dg", "risque", "exploit", "ajourne", "defavorable"];
 
 function getStatutPill(statut) {
-  const s = STATUTS_DOSSIER[statut] || STATUTS_DOSSIER.depose;
+  const s = STATUTS_DOSSIER[statut] || STATUTS_DOSSIER.exploit;
   return `<span style="background:${s.bg};color:${s.color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap">${s.icon} ${s.l}</span>`;
 }
 
@@ -3442,7 +3454,7 @@ function renderDossiers() {
 
   let list = getDossiersDeposes();
   if (search) list = list.filter(r => (r.nom||"").toLowerCase().includes(search) || (r.code||"").toLowerCase().includes(search));
-  if (filterStatut) list = list.filter(r => (r.statut_dossier || "depose") === filterStatut);
+  if (filterStatut) list = list.filter(r => (r.statut_dossier || "exploit") === filterStatut);
   if (filterCaf) list = list.filter(r => r.caf === filterCaf);
 
   const tbody = document.getElementById("dos_table");
@@ -3452,7 +3464,7 @@ function renderDossiers() {
   }
 
   tbody.innerHTML = list.map(r => {
-    const statut = r.statut_dossier || "depose";
+    const statut = r.statut_dossier || "exploit";
     const statutDate = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
     // Montant du dernier intervenant (montant_valide) prioritaire sur le montant déposé à l'origine
     const montantAff = r.montant_valide
@@ -3496,11 +3508,11 @@ function openDosModal(id) {
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Type</div><div style="font-size:14px;font-weight:600">${r.type || "—"}</div></div>
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Montant${r.montant_valide?" validé":""}</div><div style="font-size:14px;font-weight:600;color:${r.montant_valide?"var(--success)":"inherit"}">${fmtM(r.montant_valide||r.montant)} FCFA</div>${montantSub}</div>
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Durée${r.duree_validee?" validée":""}</div><div style="font-size:14px;font-weight:600;color:${r.duree_validee?"var(--success)":"inherit"}">${r.duree_validee||r.duree||"—"} mois</div>${dureeSub}</div>
-    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Statut actuel</div><div style="font-size:14px">${getStatutPill(r.statut_dossier || "depose")}${r.statut_dossier === "exploit" && r.sous_statut_exploit ? " · " + getSousStatutInline(r.sous_statut_exploit) : ""}${(r.statut_dossier === "vmep" || r.statut_dossier === "regul") && r.sous_statut_engagement ? " · " + getSousStatutEngagementInline(r.sous_statut_engagement) : ""}${r.statut_dossier === "risque" && r.sous_statut_risque ? " · " + getSousStatutRisqueInline(r.sous_statut_risque) : ""}</div></div>
+    <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600">Statut actuel</div><div style="font-size:14px">${getStatutPill(r.statut_dossier || "exploit")}${r.statut_dossier === "exploit" && r.sous_statut_exploit ? " · " + getSousStatutInline(r.sous_statut_exploit) : ""}${(r.statut_dossier === "vmep" || r.statut_dossier === "regul") && r.sous_statut_engagement ? " · " + getSousStatutEngagementInline(r.sous_statut_engagement) : ""}${r.statut_dossier === "risque" && r.sous_statut_risque ? " · " + getSousStatutRisqueInline(r.sous_statut_risque) : ""}</div></div>
   `;
 
   // Pré-sélectionner le statut actuel et les montants validés
-  document.getElementById("dos_new_statut").value = r.statut_dossier || "depose";
+  document.getElementById("dos_new_statut").value = r.statut_dossier || "exploit";
   document.getElementById("dos_new_date").value = new Date().toISOString().split("T")[0];
   document.getElementById("dos_new_comment").value = "";
   document.getElementById("dos_new_montant").value = r.montant_valide || "";
@@ -3561,7 +3573,7 @@ function renderDosHistorique(historique) {
   }
   const reversed = [...historique].reverse();
   container.innerHTML = reversed.map(h => {
-    const s = STATUTS_DOSSIER[h.statut] || STATUTS_DOSSIER.depose;
+    const s = STATUTS_DOSSIER[h.statut] || STATUTS_DOSSIER.exploit;
     const montantTxt = h.montant_valide ? `<div style="font-size:11px;color:var(--navy);font-weight:600;margin-top:3px">💰 Montant validé : ${fmtM(h.montant_valide)} FCFA</div>` : "";
     const sousStatutTxt = h.sous_statut_exploit ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${getSousStatutInline(h.sous_statut_exploit)}</div>` : "";
     const sousStatutEngagementTxt = h.sous_statut_engagement ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${getSousStatutEngagementInline(h.sous_statut_engagement)}</div>` : "";
@@ -3611,11 +3623,11 @@ async function saveStatutDossier() {
     return;
   }
 
-  const sousStatutChanged = newStatut === "exploit" && newStatut === (r.statut_dossier || "depose") && newSousStatut !== (r.sous_statut_exploit || null);
-  const sousStatutEngagementChanged = (newStatut === "vmep" || newStatut === "regul") && newStatut === (r.statut_dossier || "depose") && newSousStatutEngagement !== (r.sous_statut_engagement || null);
-  const sousStatutRisqueChanged = newStatut === "risque" && newStatut === (r.statut_dossier || "depose") && newSousStatutRisque !== (r.sous_statut_risque || null);
+  const sousStatutChanged = newStatut === "exploit" && newStatut === (r.statut_dossier || "exploit") && newSousStatut !== (r.sous_statut_exploit || null);
+  const sousStatutEngagementChanged = (newStatut === "vmep" || newStatut === "regul") && newStatut === (r.statut_dossier || "exploit") && newSousStatutEngagement !== (r.sous_statut_engagement || null);
+  const sousStatutRisqueChanged = newStatut === "risque" && newStatut === (r.statut_dossier || "exploit") && newSousStatutRisque !== (r.sous_statut_risque || null);
 
-  if (newStatut === (r.statut_dossier || "depose") && !comment && !sousStatutChanged && !sousStatutEngagementChanged && !sousStatutRisqueChanged) {
+  if (newStatut === (r.statut_dossier || "exploit") && !comment && !sousStatutChanged && !sousStatutEngagementChanged && !sousStatutRisqueChanged) {
     toast("Le statut est identique à l'actuel", "error"); return;
   }
 
@@ -3687,7 +3699,7 @@ function renderKpiStatuts() {
   if (!el) return;
   const deposes = allData.filter(r => r.mod === "deposes");
   Object.entries(STATUTS_DOSSIER).forEach(([key, s]) => {
-    const count = deposes.filter(r => (r.statut_dossier || "depose") === key).length;
+    const count = deposes.filter(r => (r.statut_dossier || "exploit") === key).length;
     const el2 = document.getElementById("kpi_statut_" + key);
     if (el2) el2.textContent = count;
   });
@@ -3700,7 +3712,7 @@ function exportDossiers() {
   const headers = ["Client","Code","CAF","Type","Montant","Durée","Semaine","Statut","Sous-étape","Date statut","Observations","Dernier commentaire (statut)"];
   const rows = list.map(r => [
     r.nom, r.code, r.caf, r.type, r.montant_valide || r.montant, r.duree_validee || r.duree, r.semaine,
-    STATUTS_DOSSIER[r.statut_dossier || "depose"]?.l || "Déposé",
+    STATUTS_DOSSIER[r.statut_dossier || "exploit"]?.l || "À l'exploitation",
     r.statut_dossier === "exploit" ? (SOUS_STATUTS_EXPLOIT[r.sous_statut_exploit]?.l || "") : "",
     r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—",
     r.obs || "",
