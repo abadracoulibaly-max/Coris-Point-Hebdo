@@ -604,6 +604,7 @@ tr:hover td{background:var(--navy-light);}
       <option value="vmep">Validé en attente</option>
       <option value="regul">MEP à régulariser</option>
       <option value="mep">MEP</option>
+      <option value="desistement">Désistement client</option>
       <option value="ajourne">Ajourné</option>
       <option value="defavorable">Défavorable</option>
     </select>
@@ -741,6 +742,7 @@ tr:hover td{background:var(--navy-light);}
               <option value="vmep">Validé en attente</option>
               <option value="regul">MEP à régulariser</option>
               <option value="mep">MEP</option>
+              <option value="desistement">Désistement client</option>
               <option value="ajourne">Ajourné</option>
               <option value="defavorable">Défavorable</option>
             </select>
@@ -813,7 +815,7 @@ tr:hover td{background:var(--navy-light);}
   <!-- KPI statuts en temps réel -->
   <div id="dash_kpi_statuts" style="margin-bottom:20px">
     <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">📊 Répartition des dossiers par statut actuel</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
       <div style="background:#fffbeb;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('exploit')">
         <div style="font-size:20px;font-weight:700;color:#92400e" id="kpi_statut_exploit">—</div>
         <div style="font-size:10px;color:#92400e;font-weight:600;margin-top:3px">⚙️ Exploitation</div>
@@ -837,6 +839,10 @@ tr:hover td{background:var(--navy-light);}
       <div style="background:#dcfce7;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('mep')">
         <div style="font-size:20px;font-weight:700;color:#15803d" id="kpi_statut_mep">—</div>
         <div style="font-size:10px;color:#15803d;font-weight:600;margin-top:3px">💰 MEP</div>
+      </div>
+      <div style="background:#fff7ed;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('desistement')">
+        <div style="font-size:20px;font-weight:700;color:#c2410c" id="kpi_statut_desistement">—</div>
+        <div style="font-size:10px;color:#c2410c;font-weight:600;margin-top:3px">🚫 Désistement</div>
       </div>
       <div style="background:#f5f5f4;border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="allerVersDossiers('ajourne')">
         <div style="font-size:20px;font-weight:700;color:#78716c" id="kpi_statut_ajourne">—</div>
@@ -884,6 +890,7 @@ tr:hover td{background:var(--navy-light);}
       <option value="pipeline">🔄 Pipeline</option>
       <option value="mep">💰 MEP du mois</option>
       <option value="regul">⏳ Régularisation</option>
+      <option value="desistement">🚫 Désistement client</option>
       <option value="ajourne">⏸️ Ajournés</option>
       <option value="defavorable">❌ Défavorables</option>
     </select>
@@ -1114,7 +1121,7 @@ tr:hover td{background:var(--navy-light);}
 const SB_URL = "https://sdwrmdkldnyfgwnmryqd.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd3JtZGtsZG55Zmd3bm1yeXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDMwNTMsImV4cCI6MjA5ODMxOTA1M30.UO8e15d8qqj0r79ENmFufA7zzpxu-8_1V5llocHpdW8";
 
-const MODS = {deposes:{l:"Déposés",i:"📥"},comite:{l:"Prévision Comité",i:"📋"},risque:{l:"Risque",i:"🔍"},validation_dg:{l:"Validation DG",i:"🏛️"},exploit:{l:"Exploitation",i:"⚙️"},vmep:{l:"Validés Non MEP",i:"✅"},pipeline:{l:"Pipeline",i:"🔄"},mep:{l:"MEP du mois",i:"💰"},regul:{l:"Régularisation",i:"⏳"},ajourne:{l:"Ajournés",i:"⏸️"},defavorable:{l:"Défavorables",i:"❌"}};
+const MODS = {deposes:{l:"Déposés",i:"📥"},comite:{l:"Prévision Comité",i:"📋"},risque:{l:"Risque",i:"🔍"},validation_dg:{l:"Validation DG",i:"🏛️"},exploit:{l:"Exploitation",i:"⚙️"},vmep:{l:"Validés Non MEP",i:"✅"},pipeline:{l:"Pipeline",i:"🔄"},mep:{l:"MEP du mois",i:"💰"},regul:{l:"Régularisation",i:"⏳"},desistement:{l:"Désistement client",i:"🚫"},ajourne:{l:"Ajournés",i:"⏸️"},defavorable:{l:"Défavorables",i:"❌"}};
 const PFX = {deposes:"d",comite:"c",risque:"r",exploit:"e",vmep:"v",pipeline:"p",mep:"m",regul:"g"};
 
 let allData = [];
@@ -1828,6 +1835,7 @@ const MOD_TO_STATUT = {
   vmep: "vmep",
   mep: "mep",
   regul: "regul",
+  desistement: "desistement",
   ajourne: "ajourne",
   defavorable: "defavorable"
 };
@@ -2800,6 +2808,7 @@ function buildModuleSheet(wb, modKey, modLabel, rows) {
     pipeline: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "stade", "secteur", "obs"],
     mep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "ref", "obs", "commentaire"],
     regul: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "ref", "obs", "deadline", "commentaire"],
+    desistement: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"],
     ajourne: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"],
     defavorable: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"]
   };
@@ -2939,7 +2948,7 @@ async function exportRapportPro() {
     buildSyntheseSheet(wb, data, sem);
 
     // 2. Feuilles détaillées par module (ordre logique du circuit)
-    const moduleOrder = ["deposes", "comite", "risque", "validation_dg", "exploit", "vmep", "pipeline", "mep", "regul", "ajourne", "defavorable"];
+    const moduleOrder = ["deposes", "comite", "risque", "validation_dg", "exploit", "vmep", "pipeline", "mep", "regul", "desistement", "ajourne", "defavorable"];
     moduleOrder.forEach(mod => {
       buildModuleSheet(wb, mod, MODS[mod].l, data[mod] || []);
     });
@@ -3436,6 +3445,7 @@ const STATUTS_DOSSIER = {
   vmep:          { l: "Validé en attente",   icon: "✅", color: "#15803d", bg: "#f0fdf4" },
   regul:         { l: "MEP à régulariser",   icon: "⏳", color: "#6b21a8", bg: "#f3e8ff" },
   mep:           { l: "MEP",                 icon: "💰", color: "#15803d", bg: "#dcfce7" },
+  desistement:   { l: "Désistement client",  icon: "🚫", color: "#c2410c", bg: "#fff7ed" },
   ajourne:       { l: "Ajourné",             icon: "⏸️", color: "#78716c", bg: "#f5f5f4" },
   defavorable:   { l: "Défavorable",         icon: "❌", color: "#CC0000", bg: "#fef2f2" }
 };
@@ -3503,7 +3513,7 @@ function getSousStatutRisqueBadge(r) {
 }
 
 // Ordre de priorité pour la migration (du plus avancé au moins avancé)
-const STATUT_PRIORITY = ["mep", "regul", "vmep", "validation_dg", "risque", "exploit", "ajourne", "defavorable"];
+const STATUT_PRIORITY = ["mep", "regul", "vmep", "validation_dg", "risque", "exploit", "desistement", "ajourne", "defavorable"];
 
 function getStatutPill(statut) {
   const s = STATUTS_DOSSIER[statut] || STATUTS_DOSSIER.exploit;
@@ -3702,6 +3712,12 @@ async function saveStatutDossier() {
     return;
   }
 
+  // Commentaire obligatoire pour un désistement client (garder une trace du motif)
+  if (newStatut === "desistement" && !comment) {
+    toast("Un commentaire précisant le motif du désistement est obligatoire", "error");
+    return;
+  }
+
   const sousStatutChanged = newStatut === "exploit" && newStatut === (r.statut_dossier || "exploit") && newSousStatut !== (r.sous_statut_exploit || null);
   const sousStatutEngagementChanged = (newStatut === "vmep" || newStatut === "regul") && newStatut === (r.statut_dossier || "exploit") && newSousStatutEngagement !== (r.sous_statut_engagement || null);
   const sousStatutRisqueChanged = newStatut === "risque" && newStatut === (r.statut_dossier || "exploit") && newSousStatutRisque !== (r.sous_statut_risque || null);
@@ -3799,6 +3815,8 @@ function getPeriodeKey(r, type) {
 // Base = dossiers ayant une issue définitive (rejetés ou passés en exécution).
 // Les dossiers encore en cours (exploit/risque/validation_dg/vmep/ajourné) ne sont
 // pas comptés : ils n'ont pas encore de décision, les inclure fausserait le taux.
+// Le désistement client est volontairement exclu : ce n'est pas un rejet de crédit,
+// c'est le client qui se retire d'un dossier déjà validé — un phénomène différent.
 function getRejetBase() {
   return allData.filter(r => r.mod === "deposes" && ["defavorable", "mep", "regul"].includes(r.statut_dossier));
 }
