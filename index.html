@@ -2010,11 +2010,7 @@ function renderVueEngagement() {
 }
 
 // Export Excel réel (.xlsx) de la Vue Engagement, en respectant les filtres actifs
-function exportVueEngagementExcel() {
-  const list = getVueEngagementFilteredList();
-  if (!list.length) { toast("Aucune donnée à exporter", "error"); return; }
-  if (typeof XLSX === "undefined") { toast("Erreur : bibliothèque Excel non chargée", "error"); return; }
-
+function buildVueEngagementDataSheet(wb, sheetName, list) {
   const ws = {};
   const headers = ["Client", "Code", "CAF", "Type", "Montant validé (FCFA)", "Statut", "Suivi conventions", "Depuis le"];
   headers.forEach((h, i) => { ws[String.fromCharCode(65 + i) + "1"] = { v: h, t: "s", s: xlStyleHeader() }; });
@@ -2037,12 +2033,82 @@ function exportVueEngagementExcel() {
     });
   });
 
-  ws["!ref"] = "A1:H" + (list.length + 1);
+  if (!list.length) {
+    ws["A2"] = { v: "Aucune donnée", t: "s", s: { font: { italic: true, color: { rgb: "6b7a99" } } } };
+  }
+
+  ws["!ref"] = "A1:H" + Math.max(list.length + 1, 2);
   ws["!cols"] = headers.map((h, i) => ({ wch: i === 0 ? 26 : i === 6 ? 34 : 16 }));
   ws["!rows"] = [{ hpt: 22 }];
 
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+}
+
+function buildVueEngagementKpiSheet(wb) {
+  let base = allData.filter(r => r.mod === "deposes" && ["vmep", "mep", "regul"].includes(r.statut_dossier));
+  if (currentRole === "caf") base = base.filter(r => r.caf === currentUser.nom);
+
+  const vmepRows = base.filter(r => r.statut_dossier === "vmep");
+  const regulRows = base.filter(r => r.statut_dossier === "regul");
+  const mepRows = base.filter(r => r.statut_dossier === "mep");
+  const conventionRows = base.filter(r => r.statut_dossier === "vmep" || r.statut_dossier === "regul");
+  const editionRows = conventionRows.filter(r => r.sous_statut_engagement === "edition");
+  const attenteDocRows = conventionRows.filter(r => r.sous_statut_engagement === "attente_documentation");
+  const transmisRows = conventionRows.filter(r => r.sous_statut_engagement === "transmis_signature");
+  const vol = rows => rows.reduce((s, r) => s + (r.montant_valide || r.montant || 0), 0);
+
+  const ws = {};
+  const setCell = (addr, value, style) => {
+    ws[addr] = { v: value, t: typeof value === "number" ? "n" : "s" };
+    if (style) ws[addr].s = style;
+  };
+
+  setCell("A1", "VUE ENGAGEMENT — KPI", xlStyleTitle());
+  setCell("A2", "Généré le " + new Date().toLocaleDateString("fr-FR"), { font: { italic: true, sz: 10, color: { rgb: "6b7a99" } } });
+
+  const kpis = [
+    ["Validé en attente", vmepRows.length, vol(vmepRows)],
+    ["Convention en cours d'édition", editionRows.length, ""],
+    ["En attente de documentation", attenteDocRows.length, ""],
+    ["Convention transmise — attente signature", transmisRows.length, ""],
+    ["MEP à régulariser", regulRows.length, vol(regulRows)],
+    ["MEP", mepRows.length, vol(mepRows)]
+  ];
+
+  let row = 4;
+  ["Indicateur", "Nombre", "Volume (FCFA)"].forEach((h, i) => {
+    setCell(String.fromCharCode(65 + i) + row, h, xlStyleHeader());
+  });
+  row++;
+  kpis.forEach(([label, count, volume], idx) => {
+    const bg = idx % 2 === 0 ? XL.white : XL.lightGray;
+    setCell("A" + row, label, xlStyleCell(false, bg));
+    setCell("B" + row, count, xlStyleCell(false, bg));
+    setCell("C" + row, volume === "" ? "" : volume, xlStyleCell(false, bg));
+    if (volume !== "") ws["C" + row].t = "n";
+    row++;
+  });
+
+  ws["!ref"] = "A1:C" + row;
+  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }];
+  ws["!cols"] = [{ wch: 40 }, { wch: 12 }, { wch: 18 }];
+  ws["!rows"] = [{ hpt: 24 }];
+
+  XLSX.utils.book_append_sheet(wb, ws, "KPI");
+}
+
+function exportVueEngagementExcel() {
+  const list = getVueEngagementFilteredList();
+  if (!list.length) { toast("Aucune donnée à exporter", "error"); return; }
+  if (typeof XLSX === "undefined") { toast("Erreur : bibliothèque Excel non chargée", "error"); return; }
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Vue Engagement");
+  buildVueEngagementKpiSheet(wb);
+  buildVueEngagementDataSheet(wb, "Données", list);
+  buildVueEngagementDataSheet(wb, "Validé en attente", list.filter(r => r.statut_dossier === "vmep"));
+  buildVueEngagementDataSheet(wb, "MEP", list.filter(r => r.statut_dossier === "mep"));
+  buildVueEngagementDataSheet(wb, "MEP à régulariser", list.filter(r => r.statut_dossier === "regul"));
+
   XLSX.writeFile(wb, "CMF_VueEngagement_" + new Date().toISOString().split("T")[0] + ".xlsx");
   toast("Export téléchargé", "success");
 }
