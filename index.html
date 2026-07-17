@@ -354,6 +354,7 @@ tr:hover td{background:var(--navy-light);}
 <div class="module-bar" id="moduleBar">
   <button class="mod-chip active" onclick="showModule('deposes',this)">📥 Déposés</button>
   <button class="mod-chip" onclick="showModule('comite',this)">📋 Prévisions Comité</button>
+  <button class="mod-chip" onclick="showModule('pipeline',this)">🔄 Pipeline</button>
 </div>
 
 <div class="main">
@@ -434,58 +435,6 @@ tr:hover td{background:var(--navy-light);}
     <div id="recent-comite"></div>
   </div>
 
-    <div id="form-risque" style="display:none">
-    <div class="section-header">
-      <div class="section-title">🔍 Analyse Risque</div>
-      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th>Sous-étape</th><th></th></tr></thead>
-        <tbody id="vue-risque"></tbody>
-      </table>
-    </div>
-  </div>
-
-    <div id="form-validation_dg" style="display:none">
-    <div class="section-header">
-      <div class="section-title">🏛️ Validation DG</div>
-      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
-        <tbody id="vue-validation_dg"></tbody>
-      </table>
-    </div>
-  </div>
-
-    <div id="form-exploit" style="display:none">
-    <div class="section-header">
-      <div class="section-title">⚙️ Analyse Exploitation</div>
-      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th>Sous-étape</th><th></th></tr></thead>
-        <tbody id="vue-exploit"></tbody>
-      </table>
-    </div>
-  </div>
-
-    <div id="form-vmep" style="display:none">
-    <div class="section-header">
-      <div class="section-title">✅ Validés Non MEP</div>
-      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
-        <tbody id="vue-vmep"></tbody>
-      </table>
-    </div>
-  </div>
-
   <div id="form-pipeline" style="display:none">
     <div class="section-header"><div class="section-title">🔄 Pipeline Commercial</div></div>
     <div class="card">
@@ -523,57 +472,6 @@ tr:hover td{background:var(--navy-light);}
     <div id="recent-pipeline"></div>
   </div>
 
-    <div id="form-mep" style="display:none">
-    <div class="section-header">
-      <div class="section-title">💰 MEP du Mois</div>
-      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
-        <tbody id="vue-mep"></tbody>
-      </table>
-    </div>
-  </div>
-
-    <div id="form-regul" style="display:none">
-    <div class="section-header">
-      <div class="section-title">⏳ Régularisation</div>
-      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
-        <tbody id="vue-regul"></tbody>
-      </table>
-    </div>
-  </div>
-
-    <div id="form-ajourne" style="display:none">
-    <div class="section-header">
-      <div class="section-title">⏸️ Ajournés</div>
-      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
-        <tbody id="vue-ajourne"></tbody>
-      </table>
-    </div>
-  </div>
-
-    <div id="form-defavorable" style="display:none">
-    <div class="section-header">
-      <div class="section-title">❌ Défavorables</div>
-      <div class="section-desc">Dossiers actuellement à ce stade — cliquez sur un dossier pour modifier son statut</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th></th></tr></thead>
-        <tbody id="vue-defavorable"></tbody>
-      </table>
-    </div>
-  </div>
 </div>
 
 <!-- MES OBJECTIFS (CAF) -->
@@ -1129,7 +1027,7 @@ const SB_URL = "https://sdwrmdkldnyfgwnmryqd.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd3JtZGtsZG55Zmd3bm1yeXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDMwNTMsImV4cCI6MjA5ODMxOTA1M30.UO8e15d8qqj0r79ENmFufA7zzpxu-8_1V5llocHpdW8";
 
 const MODS = {deposes:{l:"Déposés",i:"📥"},comite:{l:"Prévision Comité",i:"📋"},risque:{l:"Risque",i:"🔍"},validation_dg:{l:"Validation DG",i:"🏛️"},exploit:{l:"Exploitation",i:"⚙️"},vmep:{l:"Validés Non MEP",i:"✅"},pipeline:{l:"Pipeline",i:"🔄"},mep:{l:"MEP du mois",i:"💰"},regul:{l:"Régularisation",i:"⏳"},desistement:{l:"Désistement client",i:"🚫"},ajourne:{l:"Ajournés",i:"⏸️"},defavorable:{l:"Défavorables",i:"❌"}};
-const PFX = {deposes:"d",comite:"c",risque:"r",exploit:"e",vmep:"v",pipeline:"p",mep:"m",regul:"g"};
+const PFX = {deposes:"d",comite:"c",pipeline:"p"};
 
 let allData = [];
 let currentUser = null;
@@ -1773,67 +1671,6 @@ function toggleNavDropdown(event, id) {
 }
 document.addEventListener("click", closeNavDropdowns);
 
-// Vue filtrée pour les CAF sur les modules de suivi (pas de formulaire, liste de leurs dossiers)
-function renderModuleFiltreCAF(mod) {
-  // Masquer le formulaire de saisie, ne garder que le titre et la zone récente
-  const form = document.getElementById("form-" + mod);
-  if (!form) return;
-
-  // Cacher toutes les cards de formulaire
-  form.querySelectorAll(".card").forEach(c => c.style.display = "none");
-
-  // Récupérer le conteneur de la liste (recent-X) ou le créer
-  let listContainer = document.getElementById("recent-" + mod);
-  if (!listContainer) return;
-
-  // Mapping module → statut_dossier correspondant
-  const MOD_TO_STATUT = {
-    risque: "risque",
-    exploit: "exploit",
-    vmep: "vmep",
-    mep: "mep",
-    regul: "regul"
-  };
-  const statut = MOD_TO_STATUT[mod];
-  const modLabels = {
-    risque: "Au risque", exploit: "À l'exploitation",
-    vmep: "Validé en attente", mep: "MEP", regul: "MEP à régulariser"
-  };
-
-  // Filtrer les dossiers déposés par ce CAF avec le statut correspondant
-  const mesDossiers = allData.filter(r =>
-    r.mod === "deposes" &&
-    r.caf === currentUser.nom &&
-    (r.statut_dossier === statut)
-  );
-
-  if (!mesDossiers.length) {
-    listContainer.innerHTML = `<div class="empty-state">
-      <div class="empty-icon">📂</div>
-      <div class="empty-text">Aucun de vos dossiers n'est actuellement "${modLabels[mod] || mod}"</div>
-      <div class="empty-sub">Les dossiers apparaissent ici quand vous mettez à jour leur statut dans l'onglet <strong>📁 Dossiers</strong></div>
-    </div>`;
-    return;
-  }
-
-  listContainer.innerHTML = `
-    <div style="background:var(--navy-light);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--navy)">
-      💡 Ces dossiers sont en statut <strong>"${modLabels[mod]}"</strong>. Pour modifier le statut, allez dans l'onglet <strong>📁 Dossiers</strong>.
-    </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Client</th><th>Code</th><th>Type</th><th>Montant demandé</th><th>Montant validé</th><th>Date statut</th><th>Semaine dépôt</th></tr></thead>
-      <tbody>${mesDossiers.map(r => `<tr>
-        <td><strong>${r.nom || "—"}</strong></td>
-        <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
-        <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
-        <td class="amount">${fmtM(r.montant)}</td>
-        <td class="amount" style="color:${r.montant_valide ? 'var(--success)' : 'var(--muted)'}">${r.montant_valide ? fmtM(r.montant_valide) : "—"}</td>
-        <td style="font-size:11px">${r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—"}</td>
-        <td style="font-size:11px">${r.semaine || "—"}</td>
-      </tr>`).join("")}</tbody>
-    </table></div>`;
-}
-
 // Correspondance module → statut_dossier
 const MOD_TO_STATUT = {
   risque: "risque",
@@ -1875,44 +1712,7 @@ function getRowsForMod(mod, sem, caf) {
   return rows;
 }
 
-function renderVueModule(mod, targetId) {
-  const statut = MOD_TO_STATUT[mod];
-  const tbody = document.getElementById(targetId || ("vue-" + mod));
-  if (!tbody) return;
-
-  let list = allData.filter(r => r.mod === "deposes" && (r.statut_dossier || "exploit") === statut);
-  if (currentRole === "caf") list = list.filter(r => r.caf === currentUser.nom);
-
-  const colspan = (mod === "exploit" || mod === "risque") ? 10 : 9;
-  if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="${colspan}"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = list.map(r => {
-    const montantAff = r.montant_valide
-      ? `<strong style="color:var(--success)">${fmtM(r.montant_valide)}</strong>`
-      : `<span style="color:var(--muted)">${fmtM(r.montant)}</span>`;
-    const statutDate = r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—";
-    const sousEtapeTd = mod === "exploit" ? `<td>${getSousStatutInline(r.sous_statut_exploit)}</td>`
-      : mod === "risque" ? `<td>${getSousStatutRisqueInline(r.sous_statut_risque)}</td>` : "";
-    return `<tr style="cursor:pointer" onclick="openDosModal(${r.id})">
-      <td><strong>${r.nom || "—"}</strong></td>
-      <td style="font-size:11px;color:var(--muted)">${r.code || "—"}</td>
-      <td style="font-size:11px">${r.caf}</td>
-      <td><span class="badge badge-${r.type}">${r.type || "—"}</span></td>
-      <td class="amount">${fmtM(r.montant)}</td>
-      <td>${montantAff}</td>
-      <td style="font-size:11px">${statutDate}</td>
-      <td style="font-size:11px">${r.semaine || "—"}</td>
-      ${sousEtapeTd}
-      <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
-    </tr>`;
-  }).join("");
-}
-
-// Vue dédiée au service Risque (nav de premier niveau, rôle "risque") —
-// réutilise renderVueModule sur un tbody distinct de celui de l'onglet Saisie.
+// Vue dédiée au service Risque (nav de premier niveau, rôle "risque").
 // Filtres partagés par l'affichage de la Vue Risque
 function getVueRisqueFilteredList() {
   const search = (document.getElementById("vrisk_search")?.value || "").toLowerCase();
@@ -2214,17 +2014,9 @@ async function showModule(mod, el) {
   // (ex: un dossier dont le statut a été modifié depuis le dernier chargement)
   await syncData();
 
-  // Modules avec formulaire de saisie : déposés, comité, pipeline
-  const MODS_SAISIE = ["deposes", "comite", "pipeline"];
-  if (MODS_SAISIE.includes(mod)) {
-    if (mod === "deposes") populateDepFilters();
-    if (mod === "comite") populateComiteFilters();
-    renderRecent(mod);
-  } else {
-    // Modules lecture seule (risque, exploit, vmep, mep, regul)
-    // → affichent la liste des dossiers dont le statut_dossier correspond
-    renderVueModule(mod);
-  }
+  if (mod === "deposes") populateDepFilters();
+  if (mod === "comite") populateComiteFilters();
+  renderRecent(mod);
 }
 
 function selCredit(pfx,type,btn){
