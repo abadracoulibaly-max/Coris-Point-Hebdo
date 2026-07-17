@@ -626,6 +626,7 @@ tr:hover td{background:var(--navy-light);}
           <th>Montant</th>
           <th>Statut actuel</th>
           <th>Depuis le</th>
+          <th>Délai</th>
           <th>Semaine dépôt</th>
           <th></th>
         </tr>
@@ -659,7 +660,7 @@ tr:hover td{background:var(--navy-light);}
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Semaine</th><th>Sous-étape</th><th></th></tr></thead>
+      <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant</th><th>Montant validé</th><th>Depuis le</th><th>Délai</th><th>Semaine</th><th>Sous-étape</th><th></th></tr></thead>
       <tbody id="vue-risque-dediee"></tbody>
     </table>
   </div>
@@ -709,7 +710,7 @@ tr:hover td{background:var(--navy-light);}
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant validé</th><th>Statut</th><th>Suivi conventions</th><th>Depuis le</th><th></th></tr></thead>
+      <thead><tr><th>Client</th><th>Code</th><th>CAF</th><th>Type</th><th>Montant validé</th><th>Statut</th><th>Suivi conventions</th><th>Depuis le</th><th>Délai</th><th></th></tr></thead>
       <tbody id="vue-engagement"></tbody>
     </table>
   </div>
@@ -1949,7 +1950,7 @@ function renderVueRisqueDediee() {
 
   const list = getVueRisqueFilteredList();
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
     return;
   }
 
@@ -1966,6 +1967,7 @@ function renderVueRisqueDediee() {
       <td class="amount">${fmtM(r.montant)}</td>
       <td>${montantAff}</td>
       <td style="font-size:11px">${statutDate}</td>
+      ${getDelaiCell(r)}
       <td style="font-size:11px">${r.semaine || "—"}</td>
       <td>${getSousStatutRisqueInline(r.sous_statut_risque)}</td>
       <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
@@ -2059,7 +2061,7 @@ function renderVueEngagement() {
   const list = getVueEngagementFilteredList();
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📑</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📑</div><div class="empty-text">Aucun dossier à ce stade</div></div></td></tr>`;
     return;
   }
 
@@ -2077,6 +2079,7 @@ function renderVueEngagement() {
       <td>${getStatutPill(r.statut_dossier)}</td>
       <td>${suiviTd}</td>
       <td style="font-size:11px">${statutDate}</td>
+      ${getDelaiCell(r)}
       <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
     </tr>`;
   }).join("");
@@ -3017,6 +3020,17 @@ function joursOuvresDepuis(dateStr) {
   return jours;
 }
 
+// Colonne "Délai" : nombre de jours ouvrés depuis l'entrée dans le statut actuel
+// (statut_date, à défaut la date de dépôt) — passe en rouge au-delà de 15 jours.
+// Réutilise joursOuvresDepuis(), déjà utilisée pour les alertes CAF.
+function getDelaiCell(r) {
+  const dateRef = r.statut_date ? r.statut_date.split("T")[0] : r.date;
+  if (!dateRef) return `<td style="font-size:11px;color:var(--muted)">—</td>`;
+  const jours = joursOuvresDepuis(dateRef);
+  const alerte = jours > 15;
+  return `<td style="font-size:11px;font-weight:${alerte ? "700" : "400"};color:${alerte ? "#CC0000" : "var(--muted)"}">${jours}j</td>`;
+}
+
 function getLastSaisieByCAF(data) {
   const CAF_LIST = [
     "OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou",
@@ -3548,7 +3562,7 @@ function renderDossiers() {
 
   const tbody = document.getElementById("dos_table");
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-text">Aucun dossier</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-text">Aucun dossier</div></div></td></tr>`;
     return;
   }
 
@@ -3567,6 +3581,7 @@ function renderDossiers() {
       <td class="amount">${montantAff}</td>
       <td>${getStatutPill(statut)}${getSousStatutBadge(r)}${getSousStatutEngagementBadge(r)}${getSousStatutRisqueBadge(r)}</td>
       <td style="font-size:11px">${statutDate}</td>
+      ${getDelaiCell(r)}
       <td style="font-size:11px">${r.semaine || "—"}</td>
       <td><button class="btn-export" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();openDosModal(${r.id})">Modifier →</button></td>
     </tr>`;
