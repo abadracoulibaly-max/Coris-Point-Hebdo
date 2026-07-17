@@ -1056,7 +1056,11 @@ tr:hover td{background:var(--navy-light);}
   <div class="admin-grid">
     <!-- Créer un utilisateur -->
     <div class="card">
-      <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:16px">➕ Créer un compte</div>
+      <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:16px">➕ Ajouter un compte</div>
+      <div style="background:var(--navy-light);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11.5px;color:var(--navy);line-height:1.5">
+        <strong>Étape 1 (hors application)</strong> — Dashboard Supabase → Authentication → Add user : renseignez l'email et un mot de passe fort et propre à cette personne (ne réutilisez jamais le même mot de passe pour plusieurs comptes). Copiez ensuite son <strong>User UID</strong>.<br>
+        <strong>Étape 2</strong> — complétez ce formulaire avec ce UID pour créer sa fiche dans l'application.
+      </div>
       <div class="form-group" style="margin-bottom:12px">
         <label class="required">Nom complet</label>
         <input type="text" id="new_nom" placeholder="NOM Prénom">
@@ -1066,8 +1070,8 @@ tr:hover td{background:var(--navy-light);}
         <input type="email" id="new_email" placeholder="prenom.nom@coris-mesofinance.com">
       </div>
       <div class="form-group" style="margin-bottom:12px">
-        <label class="required">Mot de passe initial</label>
-        <input type="text" id="new_pwd" value="Coris@2026">
+        <label class="required">User UID (Supabase Authentication)</label>
+        <input type="text" id="new_uid" placeholder="ex: 3f2a1b0c-4d5e-...">
       </div>
       <div class="form-group" style="margin-bottom:16px">
         <label class="required">Rôle</label>
@@ -1078,7 +1082,7 @@ tr:hover td{background:var(--navy-light);}
           <option value="engagement">Engagement — Vue Engagement uniquement</option>
         </select>
       </div>
-      <button class="btn-primary" style="margin-top:0" onclick="createUser()">➕ Créer le compte</button>
+      <button class="btn-primary" style="margin-top:0" onclick="createUserProfile()">➕ Créer la fiche</button>
     </div>
 
     <!-- Liste des utilisateurs -->
@@ -1529,36 +1533,31 @@ async function supprimerDefinitivement(id, nom) {
 }
 
 // ====== ADMIN USERS ======
-async function createUser() {
+// La création du compte d'authentification (email + mot de passe) se fait à la main
+// dans le dashboard Supabase : l'API admin/users exige la clé service_role, qui ne
+// doit jamais être exposée côté client (cf. remarque plus bas sur SB_KEY). Cette
+// fonction ne fait que créer la fiche profil (nom/rôle) une fois le compte créé.
+async function createUserProfile() {
   const nom = document.getElementById("new_nom").value.trim();
   const email = document.getElementById("new_email").value.trim();
-  const pwd = document.getElementById("new_pwd").value.trim();
+  const uid = document.getElementById("new_uid").value.trim();
   const role = document.getElementById("new_role").value;
 
-  if(!nom || !email || !pwd) { toast("Tous les champs sont obligatoires", "error"); return; }
+  if(!nom || !email || !uid) { toast("Tous les champs sont obligatoires", "error"); return; }
 
-  showLoad(true, "Création du compte...");
+  showLoad(true, "Création de la fiche...");
   try {
-    // Créer l'utilisateur via Supabase Admin API (service role)
-    const r = await fetch(`${SB_URL}/auth/v1/admin/users`, {
-      method:"POST",
-      headers:{"apikey":SB_KEY,"Authorization":"Bearer "+currentSession,"Content-Type":"application/json"},
-      body: JSON.stringify({email, password:pwd, email_confirm:true})
-    });
-    const data = await r.json();
-    if(data.error) throw new Error(data.msg || data.error);
-
-    // Créer le profil
-    await fetch(`${SB_URL}/rest/v1/profiles`, {
+    const r = await fetch(`${SB_URL}/rest/v1/profiles`, {
       method:"POST",
       headers:{"apikey":SB_KEY,"Authorization":"Bearer "+currentSession,"Content-Type":"application/json","Prefer":"return=minimal"},
-      body: JSON.stringify({id:data.id, email, nom, role, actif:true})
+      body: JSON.stringify({id:uid, email, nom, role, actif:true})
     });
+    if(!r.ok) throw new Error(await r.text());
 
-    toast("Compte créé pour " + nom);
+    toast("Fiche créée pour " + nom);
     document.getElementById("new_nom").value = "";
     document.getElementById("new_email").value = "";
-    document.getElementById("new_pwd").value = "Coris@2026";
+    document.getElementById("new_uid").value = "";
     loadUsers();
   } catch(e) { toast("Erreur : " + e.message, "error"); }
   showLoad(false);
