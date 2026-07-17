@@ -2088,7 +2088,7 @@ function renderVueEngagement() {
 // Export Excel réel (.xlsx) de la Vue Engagement, en respectant les filtres actifs
 function buildVueEngagementDataSheet(wb, sheetName, list) {
   const ws = {};
-  const headers = ["Client", "Code", "CAF", "Type", "Montant validé (FCFA)", "Statut", "Suivi conventions", "Depuis le"];
+  const headers = ["Client", "Code", "CAF", "Type", "Montant validé (FCFA)", "Statut", "Suivi conventions", "Depuis le", "Délai"];
   headers.forEach((h, i) => { ws[String.fromCharCode(65 + i) + "1"] = { v: h, t: "s", s: xlStyleHeader() }; });
 
   list.forEach((r, idx) => {
@@ -2096,16 +2096,25 @@ function buildVueEngagementDataSheet(wb, sheetName, list) {
     const suivi = (r.statut_dossier === "vmep" || r.statut_dossier === "regul")
       ? (SOUS_STATUTS_ENGAGEMENT[r.sous_statut_engagement]?.l || "—")
       : "MEP déjà décaissé";
+    // Même règle que la colonne Délai à l'écran : jours ouvrés depuis statut_date,
+    // en rouge gras au-delà de 15 jours (cf. getDelaiCell()).
+    const dateRef = r.statut_date ? r.statut_date.split("T")[0] : r.date;
+    const delaiJours = dateRef ? joursOuvresDepuis(dateRef) : null;
+    const delaiAlerte = delaiJours !== null && delaiJours > 15;
     const values = [
       r.nom || "—", r.code || "—", r.caf || "—", r.type || "—",
       r.montant_valide || r.montant || 0,
       STATUTS_DOSSIER[r.statut_dossier]?.l || r.statut_dossier,
       suivi,
-      r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—"
+      r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—",
+      delaiJours !== null ? delaiJours + "j" : "—"
     ];
     values.forEach((v, i) => {
       const isMontant = i === 4;
-      ws[String.fromCharCode(65 + i) + row] = { v: v == null ? "" : v, t: isMontant ? "n" : "s", s: xlStyleCell(false, idx % 2 === 0 ? XL.white : XL.lightGray) };
+      const isDelai = i === 8;
+      const bg = idx % 2 === 0 ? XL.white : XL.lightGray;
+      const style = isDelai && delaiAlerte ? xlStyleCell(true, bg, XL.red) : xlStyleCell(false, bg);
+      ws[String.fromCharCode(65 + i) + row] = { v: v == null ? "" : v, t: isMontant ? "n" : "s", s: style };
     });
   });
 
@@ -2113,7 +2122,7 @@ function buildVueEngagementDataSheet(wb, sheetName, list) {
     ws["A2"] = { v: "Aucune donnée", t: "s", s: { font: { italic: true, color: { rgb: "6b7a99" } } } };
   }
 
-  ws["!ref"] = "A1:H" + Math.max(list.length + 1, 2);
+  ws["!ref"] = "A1:I" + Math.max(list.length + 1, 2);
   ws["!cols"] = headers.map((h, i) => ({ wch: i === 0 ? 26 : i === 6 ? 34 : 16 }));
   ws["!rows"] = [{ hpt: 22 }];
 
