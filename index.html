@@ -3781,6 +3781,39 @@ function barCell(pct) {
   return `<td><div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:var(--border);border-radius:4px;height:6px;min-width:50px"><div style="width:${w}%;background:${c};border-radius:4px;height:6px"></div></div><span style="font-weight:700;color:${c};font-size:12px;white-space:nowrap">${pct}%</span></div></td>`;
 }
 
+const OBJECTIFS_CAFS = [
+  "OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou",
+  "KONÉ Mohamed","BAMBA Bassirou","CISSÉ David","COULIBALY Marie-Edwige",
+  "GOLI Cédric","KPADJIRO Michel","KANGA Jodel","YAO Armel","KOUADIO Marie Ange",
+  "KAMAGATE Ali","COMPAORÉ Aïda","SORO Felicité","DJÈ Jean Charles",
+  "DRAMAN Jean Michel","YOUL Sansan","NIKIEMA Bénédicte","KOUACOU Claire",
+  "TIA Natacha","KAMATÉ Tahibatou"
+];
+
+// Source unique de données pour l'affichage et l'export d'Objectifs (évite que
+// l'export se contente de recopier le texte déjà mis en forme affiché à l'écran).
+async function computeObjectifsRows(mois) {
+  const objectifs = await loadObjectifs(mois);
+  const meps = getMepRows(mois);
+
+  return OBJECTIFS_CAFS.map(caf => {
+    const obj = objectifs[caf] || DEFAULT_OBJECTIFS[caf] || {nb:0,vol:0};
+    const mep_rows = meps.filter(r => r.caf===caf);
+    const real_nb = mep_rows.length;
+    const real_vol = mep_rows.reduce((s,r)=>s+(r.montant||0),0);
+    const pct_nb = obj.nb ? Math.round((real_nb/obj.nb)*100) : 0;
+    const pct_vol = obj.vol ? Math.round((real_vol/obj.vol)*100) : 0;
+    return {caf, obj_nb:obj.nb, obj_vol:obj.vol, real_nb, real_vol, pct_nb, pct_vol};
+  });
+}
+
+function objectifsStatutCell(pct_nb, pct_vol) {
+  const avg = (pct_nb+pct_vol)/2;
+  if(avg>=100) return '<span style="background:#f0fdf4;color:#15803d;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">✅ Atteint</span>';
+  if(avg>=70) return '<span style="background:#fffbeb;color:#92400e;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">🟠 En cours</span>';
+  return '<span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">🔴 En retard</span>';
+}
+
 async function renderObjectifsView() {
   const mois = document.getElementById("obj_view_mois").value;
   if(!mois) {
@@ -3790,36 +3823,18 @@ async function renderObjectifsView() {
 
   await syncData();
 
-  const objectifs = await loadObjectifs(mois);
-  const meps = getMepRows(mois);
-
-  const CAFS = [
-    "OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou",
-    "KONÉ Mohamed","BAMBA Bassirou","CISSÉ David","COULIBALY Marie-Edwige",
-    "GOLI Cédric","KPADJIRO Michel","KANGA Jodel","YAO Armel","KOUADIO Marie Ange",
-    "KAMAGATE Ali","COMPAORÉ Aïda","SORO Felicité","DJÈ Jean Charles",
-    "DRAMAN Jean Michel","YOUL Sansan","NIKIEMA Bénédicte","KOUACOU Claire",
-    "TIA Natacha","KAMATÉ Tahibatou"
-  ];
-
-  const rows = CAFS.map(caf => {
-    const obj = objectifs[caf] || DEFAULT_OBJECTIFS[caf] || {nb:0,vol:0};
-    const mep_rows = meps.filter(r => r.caf===caf);
-    const real_nb = mep_rows.length;
-    const real_vol = mep_rows.reduce((s,r)=>s+(r.montant||0),0);
-    const pct_nb = obj.nb ? Math.round((real_nb/obj.nb)*100) : 0;
-    const pct_vol = obj.vol ? Math.round((real_vol/obj.vol)*100) : 0;
-    return {caf, obj_nb:obj.nb, obj_vol:obj.vol, real_nb, real_vol, pct_nb, pct_vol};
-  });
+  const rows = await computeObjectifsRows(mois);
 
   // KPIs globaux = somme objectifs
   const tot_obj_nb = rows.reduce((s,r)=>s+r.obj_nb,0);
   const tot_obj_vol = rows.reduce((s,r)=>s+r.obj_vol,0);
   const tot_real_nb = rows.reduce((s,r)=>s+r.real_nb,0);
   const tot_real_vol = rows.reduce((s,r)=>s+r.real_vol,0);
+  const taux_global_nb = tot_obj_nb ? Math.round((tot_real_nb/tot_obj_nb)*100) : 0;
   // Basé sur le volume (FCFA), cohérent avec la carte "MEP du mois / Objectif" de l'onglet Analyse
   const taux_global = tot_obj_vol ? Math.round((tot_real_vol/tot_obj_vol)*100) : 0;
   const color_global = taux_global>=100?"#16a34a":taux_global>=70?"#f59e0b":"#CC0000";
+  const color_global_nb = taux_global_nb>=100?"#16a34a":taux_global_nb>=70?"#f59e0b":"#CC0000";
 
   document.getElementById("obj_tot_nb").textContent = tot_obj_nb;
   document.getElementById("obj_tot_vol").textContent = fmtM(tot_obj_vol);
@@ -3828,14 +3843,6 @@ async function renderObjectifsView() {
   document.getElementById("obj_global_taux").textContent = taux_global+"%";
   document.getElementById("obj_global_taux").style.color = color_global;
   document.getElementById("obj_global_card").style.borderTopColor = color_global;
-
-
-  function statutCell(pct_nb, pct_vol) {
-    const avg = (pct_nb+pct_vol)/2;
-    if(avg>=100) return '<span style="background:#f0fdf4;color:#15803d;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">✅ Atteint</span>';
-    if(avg>=70) return '<span style="background:#fffbeb;color:#92400e;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">🟠 En cours</span>';
-    return '<span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600">🔴 En retard</span>';
-  }
 
   document.getElementById("obj_view_table").innerHTML = rows.map(r => `<tr>
     <td style="font-weight:600;font-size:12px">${r.caf}</td>
@@ -3853,17 +3860,17 @@ async function renderObjectifsView() {
         <span style="font-size:11px;font-weight:700;color:${(r.pct_nb+r.pct_vol)/2>=100?"#16a34a":(r.pct_nb+r.pct_vol)/2>=70?"#f59e0b":"#CC0000"}">${Math.round((r.pct_nb+r.pct_vol)/2)}%</span>
       </div>
     </td>
-    <td>${statutCell(r.pct_nb, r.pct_vol)}</td>
+    <td>${objectifsStatutCell(r.pct_nb, r.pct_vol)}</td>
   </tr>`).join("") + `<tr style="background:var(--navy-light);font-weight:700">
     <td>TOTAL ÉQUIPE</td>
     <td style="text-align:center">${tot_obj_nb}</td>
     <td style="text-align:center;color:var(--navy)">${tot_real_nb}</td>
-    ${barCell(taux_global)}
+    ${barCell(taux_global_nb)}
     <td style="text-align:right">${fmtM(tot_obj_vol)}</td>
     <td style="text-align:right;color:var(--navy)">${fmtM(tot_real_vol)}</td>
-    ${barCell(tot_obj_vol?Math.round((tot_real_vol/tot_obj_vol)*100):0)}
-    <td><div style="flex:1;background:var(--border);border-radius:4px;height:8px"><div style="width:${Math.min(taux_global,100)}%;background:${color_global};border-radius:4px;height:8px"></div></div></td>
-    <td>${statutCell(taux_global, tot_obj_vol?Math.round((tot_real_vol/tot_obj_vol)*100):0)}</td>
+    ${barCell(taux_global)}
+    <td><div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:var(--border);border-radius:4px;height:8px;min-width:60px"><div style="width:${Math.min((taux_global_nb+taux_global)/2,100)}%;background:${color_global};border-radius:4px;height:8px"></div></div><span style="font-size:11px;font-weight:700;color:${color_global}">${Math.round((taux_global_nb+taux_global)/2)}%</span></div></td>
+    <td>${objectifsStatutCell(taux_global_nb, taux_global)}</td>
   </tr>`;
 }
 
@@ -3930,16 +3937,36 @@ async function saveAllObjectifsView(mois) {
   renderObjectifsView();
 }
 
-function exportObjectifs() {
+async function exportObjectifs() {
   const mois = document.getElementById("obj_view_mois").value;
   if(!mois){toast("Sélectionnez un mois","error");return;}
-  const rows = document.querySelectorAll("#obj_view_table tr");
-  const csv = ["CAF;Obj.Nbre;MEP Nbre;% Nbre;Obj.Volume;MEP Volume;% Volume;Progression;Statut"];
-  rows.forEach(r=>{
-    const cells=[...r.querySelectorAll("td")].map(c=>c.textContent.trim().replace(/\s+/g," "));
-    if(cells.length) csv.push(cells.join(";"));
-  });
-  const b=new Blob(["\uFEFF"+csv.join("\n")],{type:"text/csv;charset=utf-8;"});
+  const objRows = await computeObjectifsRows(mois);
+  if(!objRows.length){toast("Aucune donnée","error");return;}
+
+  const tot_obj_nb = objRows.reduce((s,r)=>s+r.obj_nb,0);
+  const tot_obj_vol = objRows.reduce((s,r)=>s+r.obj_vol,0);
+  const tot_real_nb = objRows.reduce((s,r)=>s+r.real_nb,0);
+  const tot_real_vol = objRows.reduce((s,r)=>s+r.real_vol,0);
+  const taux_global_nb = tot_obj_nb ? Math.round((tot_real_nb/tot_obj_nb)*100) : 0;
+  const taux_global = tot_obj_vol ? Math.round((tot_real_vol/tot_obj_vol)*100) : 0;
+  const statutTxt = (pct_nb, pct_vol) => {
+    const avg=(pct_nb+pct_vol)/2;
+    if(avg>=100) return "Atteint";
+    if(avg>=70) return "En cours";
+    return "En retard";
+  };
+
+  const headers=["CAF","Obj. Nbre","MEP Nbre","% Nbre","Obj. Volume","MEP Volume","% Volume","Progression","Statut"];
+  const dataRows = objRows.map(r => [
+    r.caf, r.obj_nb, r.real_nb, r.pct_nb, r.obj_vol, r.real_vol, r.pct_vol,
+    Math.round((r.pct_nb+r.pct_vol)/2), statutTxt(r.pct_nb, r.pct_vol)
+  ]);
+  const totalRow = [
+    "TOTAL ÉQUIPE", tot_obj_nb, tot_real_nb, taux_global_nb, tot_obj_vol, tot_real_vol, taux_global,
+    Math.round((taux_global_nb+taux_global)/2), statutTxt(taux_global_nb, taux_global)
+  ];
+  const csv=[headers,...dataRows,totalRow].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
+  const b=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
   const a=document.createElement("a");a.href=URL.createObjectURL(b);
   a.download="CMF_Objectifs_"+mois+".csv";a.click();
   toast("✅ Export téléchargé");
