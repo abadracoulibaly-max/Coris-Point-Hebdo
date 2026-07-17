@@ -282,7 +282,11 @@ tr:hover td{background:var(--navy-light);}
     </div>
   </div>
   <div class="header-right">
-    <div class="header-status"><span class="status-dot" id="statusDot"></span><span id="statusText">...</span></div>
+    <div class="header-status" id="headerSyncBtn" onclick="syncData(true)" style="cursor:pointer" title="Cliquer pour actualiser maintenant">
+      <span class="status-dot" id="statusDot"></span><span id="statusText">...</span>
+      <span id="syncTime" style="margin-left:6px;opacity:.75"></span>
+      <span style="margin-left:5px">🔄</span>
+    </div>
     <div class="header-week" id="headerWeek">—</div>
     <div class="user-badge" onclick="document.getElementById('pwdModal').classList.add('show')">
       <div>
@@ -1080,6 +1084,8 @@ let allData = [];
 let currentUser = null;
 let currentRole = null;
 let currentSession = null;
+let lastSync = 0;
+const SYNC_TTL_MS = 60000; // durée de vie du cache local avant re-fetch automatique
 
 // ====== GESTION INACTIVITÉ (verrouillage après 15 min sans activité) ======
 const INACTIVITY_LIMIT_MS = 15 * 60 * 1000; // 15 minutes
@@ -1631,6 +1637,23 @@ function setStatus(ok){
   document.getElementById("statusText").textContent=ok?"En ligne":"Hors ligne";
 }
 
+// Récupère allData depuis Supabase, mais seulement si le cache local a expiré
+// (SYNC_TTL_MS) ou si force=true (changement d'onglet manuel via 🔄, ou après
+// connexion) — évite de refaire un fetch complet à chaque clic et rend la
+// navigation entre onglets instantanée le reste du temps.
+async function syncData(force = false){
+  if (!force && allData.length && (Date.now() - lastSync) < SYNC_TTL_MS) return;
+  try {
+    allData = await sbGet();
+    lastSync = Date.now();
+    setStatus(true);
+  } catch(e) {
+    setStatus(false);
+  }
+  const el = document.getElementById("syncTime");
+  if (el) el.textContent = lastSync ? "· " + new Date(lastSync).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) : "";
+}
+
 // ====== TABS ======
 // Ferme les menus ouverts (appelé aussi bien après une sélection que par le clic
 // extérieur global) — ne touche jamais à "has-active", géré uniquement par showTab/
@@ -1672,13 +1695,13 @@ function showTab(name,el){
 
 // Rechargent depuis Supabase avant d'afficher, comme refreshAndRenderDossiers()
 async function refreshAndRenderVueRisque() {
-  try{ allData = await sbGet(); setStatus(true); } catch(e){ setStatus(false); }
+  await syncData();
   populateVueRisqueFilters();
   renderVueRisqueKpis();
   renderVueRisqueDediee();
 }
 async function refreshAndRenderVueEngagement() {
-  try{ allData = await sbGet(); setStatus(true); } catch(e){ setStatus(false); }
+  await syncData();
   populateVueEngagementFilters();
   renderVueEngagementKpis();
   renderVueEngagement();
@@ -2106,7 +2129,7 @@ async function showModule(mod, el) {
 
   // Recharger depuis Supabase pour ne pas afficher des données obsolètes
   // (ex: un dossier dont le statut a été modifié depuis le dernier chargement)
-  try{ allData = await sbGet(); setStatus(true); } catch(e){ setStatus(false); }
+  await syncData();
 
   // Modules avec formulaire de saisie : déposés, comité, pipeline
   const MODS_SAISIE = ["deposes", "comite", "pipeline"];
@@ -2296,8 +2319,7 @@ function renderRecent(mod){
 async function loadData(){
   showLoad(true,"Chargement des données...");
   try{
-    allData=await sbGet();
-    setStatus(true);
+    await syncData(true);
     populateDepFilters();
     renderRecent("deposes");
     // Vérifier alertes CAF dès la connexion (managers uniquement)
@@ -2318,7 +2340,7 @@ function allerVersDossiers(statut) {
 // ====== DASHBOARD ======
 async function renderDashboard(){
   showLoad(true,"Chargement...");
-  try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
+  await syncData();
   showLoad(false);
 
   const sem=document.getElementById("dash_sem").value;
@@ -2375,7 +2397,7 @@ function populateSuiviSem(){
 async function renderSuivi(){
   if(!document.getElementById("suivi_sem").value) return;
   const sem=document.getElementById("suivi_sem").value;
-  try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
+  await syncData();
 
   const CAF_LIST=["OUATTARA Aboubakary","ONUIYAEGU Kevin Joseph","KOUAKOU Cynthia","BAYO Abou","KONÉ Mohamed","BAMBA Bassirou","CISSÉ David","COULIBALY Marie-Edwige","GOLI Cédric","KPADJIRO Michel","KANGA Jodel","YAO Armel","KOUADIO Marie Ange","KAMAGATE Ali","COMPAORÉ Aïda","SORO Felicité","DJÈ Jean Charles","DRAMAN Jean Michel","YOUL Sansan","NIKIEMA Bénédicte","KOUACOU Claire","TIA Natacha","KAMATÉ Tahibatou"];
   // Filtrer par semaine (champ semaine OU recalcul depuis date)
@@ -2458,7 +2480,7 @@ function populateMoisSel(){
 async function renderMensuel(){
   const mois=document.getElementById("mens_mois").value;
   if(!mois)return;
-  try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
+  await syncData();
 
   const deposes=allData.filter(r=>r.mod==="deposes"&&r.date&&r.date.split("T")[0].startsWith(mois));
   const cafMap={};
@@ -2497,7 +2519,7 @@ async function renderMensuel(){
 // ====== SYNTHESE ======
 async function renderSynthese(){
   showLoad(true,"Chargement...");
-  try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
+  await syncData();
   showLoad(false);
   const sem=document.getElementById("syn_sem").value;
   const sems=[...new Set(allData.map(r=>r.semaine).filter(Boolean))].sort().reverse();
@@ -2895,7 +2917,7 @@ function allerVersAnalyse() {
   });
   // Charger les données et afficher les alertes
   setTimeout(async () => {
-    try{ allData = await sbGet(); setStatus(true); } catch(e){ setStatus(false); }
+    await syncData();
     renderAlertesCAF(allData);
     renderAnalyse();
     // Scroller vers le tableau des alertes CAF
@@ -3009,7 +3031,7 @@ function renderAlertesCAF(data) {
 // ====== ANALYSE ======
 async function renderAnalyse(){
   populateObjMois();
-  try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
+  await syncData();
   renderAlertesCAF(allData);
   const sem=document.getElementById("ana_sem").value;
   const mois=document.getElementById("ana_mois").value;
@@ -3433,7 +3455,7 @@ function getDossiersDeposes() {
 // Recharge depuis Supabase avant d'afficher (évite de montrer un statut obsolète
 // si le dossier a été modifié depuis le dernier chargement de allData)
 async function refreshAndRenderDossiers() {
-  try{ allData = await sbGet(); setStatus(true); } catch(e){ setStatus(false); }
+  await syncData();
   populateDosFilterCaf();
   renderDossiers();
 }
@@ -3733,7 +3755,7 @@ async function renderObjectifsView() {
     return;
   }
 
-  try{allData=await sbGet();setStatus(true);}catch(e){setStatus(false);}
+  await syncData();
 
   const objectifs = await loadObjectifs(mois);
   const meps = getMepRows(mois);
@@ -3894,7 +3916,7 @@ function exportObjectifs() {
 async function renderCAFObjectifs() {
   const mois = document.getElementById("caf_obj_mois").value;
   if(!mois) return;
-  try{allData=await sbGet();}catch(e){}
+  await syncData();
 
   const objectifs = await loadObjectifs(mois);
   const isManager = currentRole === "manager";
