@@ -582,6 +582,7 @@ tr:hover td{background:var(--navy-light);}
     <div class="kpi-card red"><div class="kpi-label">Dossier Incomplet</div><div class="kpi-value" id="veng_kpi_attente_doc">—</div><div class="kpi-sub">documentation</div></div>
     <div class="kpi-card gold"><div class="kpi-label">Convention en cours</div><div class="kpi-value" id="veng_kpi_edition">—</div><div class="kpi-sub">édition</div></div>
     <div class="kpi-card"><div class="kpi-label">Convention transmise</div><div class="kpi-value" id="veng_kpi_transmis">—</div><div class="kpi-sub">attente signature</div></div>
+    <div class="kpi-card"><div class="kpi-label">Signée — attente MEP</div><div class="kpi-value" id="veng_kpi_signee">—</div><div class="kpi-sub">à décaisser</div></div>
     <div class="kpi-card"><div class="kpi-label">MEP à régulariser</div><div class="kpi-value" id="veng_kpi_regul">—</div><div class="kpi-sub" id="veng_kpi_regul_vol">—</div></div>
     <div class="kpi-card"><div class="kpi-label">MEP</div><div class="kpi-value" id="veng_kpi_mep">—</div><div class="kpi-sub" id="veng_kpi_mep_vol">—</div></div>
   </div>
@@ -602,6 +603,7 @@ tr:hover td{background:var(--navy-light);}
       <option value="attente_documentation">📄 Dossier Incomplet</option>
       <option value="edition">📝 Conventions en cours d'édition</option>
       <option value="transmis_signature">✍️ Conventions transmises</option>
+      <option value="signee_attente_mep">✅ Convention signée — attente MEP</option>
     </select>
     <select id="veng_periode_type" onchange="populateVengPeriodes();renderVueEngagementKpis();renderVueEngagement()" style="font-size:12px;padding:8px 12px" title="Période retenue : date de la décision (statut_date)">
       <option value="mois">Par mois</option>
@@ -672,6 +674,7 @@ tr:hover td{background:var(--navy-light);}
             <option value="attente_documentation">📄 Dossier Incomplet</option>
             <option value="edition">📝 Conventions en cours d'édition</option>
             <option value="transmis_signature">✍️ Conventions transmises — attente signature</option>
+            <option value="signee_attente_mep">✅ Convention signée — en attente de MEP</option>
           </select>
         </div>
         <div id="dos_sous_statut_risque_wrap" style="display:none;margin-top:10px">
@@ -690,6 +693,20 @@ tr:hover td{background:var(--navy-light);}
             <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Durée validée (mois) <span id="dos_duree_hint" style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— si différent</span></label>
             <input type="number" id="dos_new_duree" placeholder="Laisser vide = durée déposée" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
           </div>
+        </div>
+        <div style="margin-top:10px">
+          <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Garantie <span id="dos_garantie_hint" style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— si applicable</span></label>
+          <select id="dos_new_garantie" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
+            <option value="">— Sélectionner —</option>
+            <option value="Co-emprunteur">Co-emprunteur</option>
+            <option value="Aval commerçant">Aval commerçant</option>
+            <option value="Aval salarié">Aval salarié</option>
+            <option value="Gage véhicule">Gage véhicule</option>
+            <option value="Gage matériel prof">Gage matériel prof</option>
+            <option value="Gage DAT">Gage DAT</option>
+            <option value="Promesse d'hypothèque">Promesse d'hypothèque</option>
+            <option value="Hypothèque ferme">Hypothèque ferme</option>
+          </select>
         </div>
         <div style="margin-top:10px">
           <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Commentaire <span id="dos_comment_hint" style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">(optionnel)</span></label>
@@ -1827,6 +1844,7 @@ function renderVueEngagementKpis() {
   const editionRows = conventionRows.filter(r => r.sous_statut_engagement === "edition");
   const attenteDocRows = conventionRows.filter(r => r.sous_statut_engagement === "attente_documentation");
   const transmisRows = conventionRows.filter(r => r.sous_statut_engagement === "transmis_signature");
+  const signeeRows = conventionRows.filter(r => r.sous_statut_engagement === "signee_attente_mep");
 
   const vol = rows => fmtM(rows.reduce((s, r) => s + (r.montant_valide || r.montant || 0), 0));
 
@@ -1836,6 +1854,7 @@ function renderVueEngagementKpis() {
   document.getElementById("veng_kpi_edition").textContent = editionRows.length;
   document.getElementById("veng_kpi_attente_doc").textContent = attenteDocRows.length;
   document.getElementById("veng_kpi_transmis").textContent = transmisRows.length;
+  document.getElementById("veng_kpi_signee").textContent = signeeRows.length;
   document.getElementById("veng_kpi_regul").textContent = regulRows.length;
   document.getElementById("veng_kpi_regul_vol").textContent = vol(regulRows);
   document.getElementById("veng_kpi_mep").textContent = mepRows.length;
@@ -1873,7 +1892,7 @@ function renderVueEngagement() {
 // Export Excel réel (.xlsx) de la Vue Engagement, en respectant les filtres actifs
 function buildVueEngagementDataSheet(wb, sheetName, list) {
   const ws = {};
-  const headers = ["Client", "Code", "CAF", "Type", "Montant validé (FCFA)", "Statut", "Suivi conventions", "Depuis le", "Délai"];
+  const headers = ["Client", "Code", "CAF", "Type", "Montant validé (FCFA)", "Statut", "Garantie", "Suivi conventions", "Depuis le", "Délai"];
   headers.forEach((h, i) => { ws[String.fromCharCode(65 + i) + "1"] = { v: h, t: "s", s: xlStyleHeader() }; });
 
   list.forEach((r, idx) => {
@@ -1890,13 +1909,14 @@ function buildVueEngagementDataSheet(wb, sheetName, list) {
       r.nom || "—", r.code || "—", r.caf || "—", r.type || "—",
       r.montant_valide || r.montant || 0,
       STATUTS_DOSSIER[r.statut_dossier]?.l || r.statut_dossier,
+      r.garantie || "—",
       suivi,
       r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—",
       delaiJours !== null ? delaiJours + "j" : "—"
     ];
     values.forEach((v, i) => {
       const isMontant = i === 4;
-      const isDelai = i === 8;
+      const isDelai = i === 9;
       const bg = idx % 2 === 0 ? XL.white : XL.lightGray;
       const style = isDelai && delaiAlerte ? xlStyleCell(true, bg, XL.red) : xlStyleCell(false, bg);
       ws[String.fromCharCode(65 + i) + row] = { v: v == null ? "" : v, t: isMontant ? "n" : "s", s: style };
@@ -1907,8 +1927,8 @@ function buildVueEngagementDataSheet(wb, sheetName, list) {
     ws["A2"] = { v: "Aucune donnée", t: "s", s: { font: { italic: true, color: { rgb: "6b7a99" } } } };
   }
 
-  ws["!ref"] = "A1:I" + Math.max(list.length + 1, 2);
-  ws["!cols"] = headers.map((h, i) => ({ wch: i === 0 ? 26 : i === 6 ? 34 : 16 }));
+  ws["!ref"] = "A1:J" + Math.max(list.length + 1, 2);
+  ws["!cols"] = headers.map((h, i) => ({ wch: i === 0 ? 26 : i === 7 ? 34 : 16 }));
   ws["!rows"] = [{ hpt: 22 }];
 
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
@@ -1929,6 +1949,7 @@ function buildVueEngagementKpiSheet(wb) {
   const editionRows = conventionRows.filter(r => r.sous_statut_engagement === "edition");
   const attenteDocRows = conventionRows.filter(r => r.sous_statut_engagement === "attente_documentation");
   const transmisRows = conventionRows.filter(r => r.sous_statut_engagement === "transmis_signature");
+  const signeeRows = conventionRows.filter(r => r.sous_statut_engagement === "signee_attente_mep");
   const vol = rows => rows.reduce((s, r) => s + (r.montant_valide || r.montant || 0), 0);
 
   const ws = {};
@@ -1947,6 +1968,7 @@ function buildVueEngagementKpiSheet(wb) {
     ["Dossier Incomplet", attenteDocRows.length, ""],
     ["Convention en cours d'édition", editionRows.length, ""],
     ["Convention transmise — attente signature", transmisRows.length, ""],
+    ["Convention signée — en attente de MEP", signeeRows.length, ""],
     ["MEP à régulariser", regulRows.length, vol(regulRows)],
     ["MEP", mepRows.length, vol(mepRows)]
   ];
@@ -2444,8 +2466,8 @@ function toCSV(rows){
   // Délai = jours ouvrés depuis l'entrée dans le statut actuel (même règle que la
   // colonne à l'écran, cf. getDelaiCell) — pas de couleur possible en CSV, valeur brute.
   const delai = r => { const d = r.statut_date ? r.statut_date.split("T")[0] : r.date; return d ? joursOuvresDepuis(d)+"j" : "—"; };
-  const h=["Semaine","Date","CAF","Code","Client","Type","Montant","Duree","Secteur","Obs","Délai"];
-  const d=rows.map(r=>[r.semaine,fmtD(r.date),r.caf,r.code,r.nom,r.type,r.montant,r.duree,r.secteur,r.obs,delai(r)]);
+  const h=["Semaine","Date","CAF","Code","Client","Type","Montant","Duree","Secteur","Garantie","Obs","Délai"];
+  const d=rows.map(r=>[r.semaine,fmtD(r.date),r.caf,r.code,r.nom,r.type,r.montant,r.duree,r.secteur,r.garantie||"",r.obs,delai(r)]);
   return [h,...d].map(row=>row.map(v=>`"${v||""}"`).join(";")).join("\n");
 }
 function dl(content,name){const b=new Blob(["\uFEFF"+content],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();}
@@ -2665,11 +2687,11 @@ function buildModuleSheet(wb, modKey, modLabel, rows) {
     risque: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"],
     validation_dg: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"],
     exploit: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"],
-    vmep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "comtype", "obs", "commentaire"],
+    vmep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "garantie", "comtype", "obs", "commentaire"],
     pipeline: ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "stade", "secteur", "obs"],
-    mep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "ref", "obs", "commentaire"],
-    regul: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "ref", "obs", "deadline", "commentaire"],
-    desistement: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"],
+    mep: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "garantie", "ref", "obs", "commentaire"],
+    regul: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "garantie", "ref", "obs", "deadline", "commentaire"],
+    desistement: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "garantie", "obs", "commentaire"],
     ajourne: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"],
     defavorable: ["semaine", "date", "statut_date", "caf", "code", "nom", "type", "montant", "duree", "obs", "commentaire"]
   };
@@ -2679,7 +2701,7 @@ function buildModuleSheet(wb, modKey, modLabel, rows) {
     caf: "CAF", code: "Code Client", nom: "Client",
     type: "Type Crédit", montant: "Montant (FCFA)", duree: "Durée (mois)", secteur: "Secteur",
     obs: "Observations", comtype: "Comité", stade: "Stade", ref: "Référence", deadline: "Délai",
-    commentaire: "Dernier commentaire (statut)"
+    garantie: "Garantie", commentaire: "Dernier commentaire (statut)"
   };
 
   const fields = fieldsMap[modKey] || ["semaine", "date", "caf", "code", "nom", "type", "montant", "duree", "obs"];
@@ -3196,8 +3218,15 @@ const SOUS_STATUTS_ENGAGEMENT = {
   attente_dossier_physique: { l: "En attente dossier physique",           icon: "📦" },
   attente_documentation:    { l: "Dossier Incomplet",                     icon: "📄" },
   edition:                  { l: "Conventions en cours d'édition",       icon: "📝" },
-  transmis_signature:       { l: "Conventions transmises — attente signature", icon: "✍️" }
+  transmis_signature:       { l: "Conventions transmises — attente signature", icon: "✍️" },
+  signee_attente_mep:       { l: "Convention signée — en attente de MEP", icon: "✅" }
 };
+
+// Liste des garanties possibles pour un dossier Validé en attente
+const GARANTIES = [
+  "Co-emprunteur", "Aval commerçant", "Aval salarié", "Gage véhicule",
+  "Gage matériel prof", "Gage DAT", "Promesse d'hypothèque", "Hypothèque ferme"
+];
 
 // Sous-étapes internes au stade "Au risque" (service Risque)
 const SOUS_STATUTS_RISQUE = {
@@ -3336,6 +3365,7 @@ function openDosModal(id) {
   document.getElementById("dos_new_comment").value = "";
   document.getElementById("dos_new_montant").value = r.montant_valide || "";
   document.getElementById("dos_new_duree").value = r.duree_validee || "";
+  document.getElementById("dos_new_garantie").value = r.garantie || "";
   document.getElementById("dos_new_sous_statut").value = r.sous_statut_exploit || "chef_agence";
   document.getElementById("dos_new_sous_statut_engagement").value = r.sous_statut_engagement || "attente_dossier_physique";
   document.getElementById("dos_new_sous_statut_risque").value = r.sous_statut_risque || "analyste";
@@ -3382,6 +3412,14 @@ function toggleDosSousStatut() {
     hintComment.textContent = requisComment ? "obligatoire" : "(optionnel)";
     hintComment.style.color = requisComment ? "#CC0000" : "var(--muted)";
   }
+
+  // Garantie obligatoire dès qu'un dossier passe Validé en attente (demande Juridique)
+  const hintGarantie = document.getElementById("dos_garantie_hint");
+  if (hintGarantie) {
+    const requisGarantie = statut === "vmep";
+    hintGarantie.textContent = requisGarantie ? "— obligatoire" : "— si applicable";
+    hintGarantie.style.color = requisGarantie ? "#CC0000" : "var(--muted)";
+  }
 }
 
 function renderDosHistorique(historique) {
@@ -3424,8 +3462,16 @@ async function saveStatutDossier() {
   const newSousStatut = newStatut === "exploit" ? (document.getElementById("dos_new_sous_statut")?.value || "chef_agence") : null;
   const newSousStatutEngagement = (newStatut === "vmep" || newStatut === "regul") ? (document.getElementById("dos_new_sous_statut_engagement")?.value || "attente_dossier_physique") : null;
   const newSousStatutRisque = newStatut === "risque" ? (document.getElementById("dos_new_sous_statut_risque")?.value || "analyste") : null;
+  const newGarantie = document.getElementById("dos_new_garantie")?.value || null;
 
   if(!isValidDateYear(newDate)){toast("Année de date invalide — vérifiez le champ date (ex: 2026, pas 26)","error");return;}
+
+  // Garantie obligatoire dès qu'un dossier passe Validé en attente (demande Juridique,
+  // pour un meilleur suivi institutionnel des sûretés prises sur chaque dossier).
+  if (newStatut === "vmep" && !newGarantie) {
+    toast("La garantie est obligatoire pour passer un dossier en Validé en attente", "error");
+    return;
+  }
 
   // Montant et durée validés obligatoires pour figer la valeur définitive dès que le
   // dossier est Validé (VMEP) ou MEP — évite que les rapports MEP retombent sur le
@@ -3466,7 +3512,8 @@ async function saveStatutDossier() {
     user: currentUser.nom,
     commentaire: comment,
     montant_valide: newMontant,
-    duree_validee: newDuree
+    duree_validee: newDuree,
+    garantie: newGarantie
   });
 
   try {
@@ -3480,6 +3527,7 @@ async function saveStatutDossier() {
     };
     if (newMontant) patch.montant_valide = newMontant;
     if (newDuree) patch.duree_validee = newDuree;
+    if (newGarantie) patch.garantie = newGarantie;
 
     const resp = await fetch(`${SB_URL}/rest/v1/dossiers?id=eq.${currentDosId}`, {
       method: "PATCH",
@@ -3506,6 +3554,7 @@ async function saveStatutDossier() {
     r.sous_statut_risque = newSousStatutRisque;
     if (newMontant) r.montant_valide = newMontant;
     if (newDuree) r.duree_validee = newDuree;
+    if (newGarantie) r.garantie = newGarantie;
 
     renderDosHistorique(historique);
     renderDossiers();
@@ -3594,11 +3643,12 @@ function renderTauxRejet() {
 function exportDossiers() {
   const list = getDossiersDeposes();
   if (!list.length) { toast("Aucun dossier", "error"); return; }
-  const headers = ["Client","Code","CAF","Type","Montant","Durée","Semaine","Statut","Sous-étape","Date statut","Observations","Dernier commentaire (statut)"];
+  const headers = ["Client","Code","CAF","Type","Montant","Durée","Semaine","Statut","Sous-étape","Garantie","Date statut","Observations","Dernier commentaire (statut)"];
   const rows = list.map(r => [
     r.nom, r.code, r.caf, r.type, r.montant_valide || r.montant, r.duree_validee || r.duree, r.semaine,
     STATUTS_DOSSIER[r.statut_dossier || "exploit"]?.l || "À l'exploitation",
     r.statut_dossier === "exploit" ? (SOUS_STATUTS_EXPLOIT[r.sous_statut_exploit]?.l || "") : "",
+    r.garantie || "",
     r.statut_date ? fmtD(r.statut_date.split("T")[0]) : "—",
     r.obs || "",
     getDernierCommentaire(r)
