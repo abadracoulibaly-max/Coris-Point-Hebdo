@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Coris Mésofinance CI — Reporting Commercial</title>
+<meta name="theme-color" content="#1A3A7A">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="https://corismeso.finance/wp-content/uploads/2020/05/cropped-cropped-favicon3-270x270.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CMF Suivi">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 :root{--navy:#1A3A7A;--blue:#1A5CA8;--red:#CC0000;--gold:#C8A84B;--navy-light:#e8eef7;--bg:#F5F7FA;--white:#fff;--text:#1a2535;--muted:#6b7a99;--border:#dde3ef;--success:#16a34a;}
@@ -4013,6 +4019,15 @@ async function init(){
 }
 
 init();
+
+// PWA : installe le service worker (cache uniquement le shell de l'application,
+// jamais les appels Supabase — on ne veut jamais afficher un dossier de crédit
+// périmé hors-ligne).
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
 </script>
 </body>
 </html>

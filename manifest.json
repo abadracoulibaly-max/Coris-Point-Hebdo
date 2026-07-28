@@ -1,0 +1,20 @@
+{
+  "name": "Coris Mésofinance CI — Suivi Commercial",
+  "short_name": "CMF Suivi",
+  "description": "Suivi commercial et cycle de vie des dossiers de crédit — Coris Mésofinance Côte d'Ivoire",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F5F7FA",
+  "theme_color": "#1A3A7A",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "https://corismeso.finance/wp-content/uploads/2020/05/cropped-cropped-favicon3-270x270.png",
+      "sizes": "270x270",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
