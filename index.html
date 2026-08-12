@@ -3518,9 +3518,10 @@ async function saveStatutDossier() {
     return;
   }
 
-  const sousStatutChanged = newStatut === "exploit" && newStatut === (r.statut_dossier || "exploit") && newSousStatut !== (r.sous_statut_exploit || null);
-  const sousStatutEngagementChanged = (newStatut === "vmep" || newStatut === "regul") && newStatut === (r.statut_dossier || "exploit") && newSousStatutEngagement !== (r.sous_statut_engagement || null);
-  const sousStatutRisqueChanged = newStatut === "risque" && newStatut === (r.statut_dossier || "exploit") && newSousStatutRisque !== (r.sous_statut_risque || null);
+  const statutChanged = newStatut !== (r.statut_dossier || "exploit");
+  const sousStatutChanged = newStatut === "exploit" && !statutChanged && newSousStatut !== (r.sous_statut_exploit || null);
+  const sousStatutEngagementChanged = (newStatut === "vmep" || newStatut === "regul") && !statutChanged && newSousStatutEngagement !== (r.sous_statut_engagement || null);
+  const sousStatutRisqueChanged = newStatut === "risque" && !statutChanged && newSousStatutRisque !== (r.sous_statut_risque || null);
 
   if (newStatut === (r.statut_dossier || "exploit") && !comment && !sousStatutChanged && !sousStatutEngagementChanged && !sousStatutRisqueChanged) {
     toast("Le statut est identique à l'actuel", "error"); return;
@@ -3545,12 +3546,18 @@ async function saveStatutDossier() {
   try {
     const patch = {
       statut_dossier: newStatut,
-      statut_date: newDate ? newDate + "T00:00:00Z" : new Date().toISOString(),
       statut_historique: historique,
       sous_statut_exploit: newSousStatut,
       sous_statut_engagement: newSousStatutEngagement,
       sous_statut_risque: newSousStatutRisque
     };
+    // statut_date ne doit refléter que les changements de statut réels — un
+    // changement de sous-statut (ou un commentaire seul) ne doit jamais la
+    // décaler, sinon les compteurs "depuis X jours" et les rattachements au
+    // mois (Objectifs) dérivent silencieusement à chaque mise à jour.
+    if (statutChanged) {
+      patch.statut_date = newDate ? newDate + "T00:00:00Z" : new Date().toISOString();
+    }
     if (newMontant) patch.montant_valide = newMontant;
     if (newDuree) patch.duree_validee = newDuree;
     if (newGarantie) patch.garantie = newGarantie;
@@ -3594,7 +3601,7 @@ async function saveStatutDossier() {
 
     // Mise à jour locale uniquement si le PATCH a réussi
     r.statut_dossier = newStatut;
-    r.statut_date = newDate;
+    if (statutChanged) r.statut_date = newDate;
     r.statut_historique = historique;
     r.sous_statut_exploit = newSousStatut;
     r.sous_statut_engagement = newSousStatutEngagement;
