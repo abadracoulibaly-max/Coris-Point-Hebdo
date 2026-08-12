@@ -656,6 +656,7 @@ tr:hover td{background:var(--navy-light);}
               <option value="regul">MEP à régulariser</option>
               <option value="mep">MEP</option>
               <option value="desistement">Désistement client</option>
+              <option value="abandon">Abandon</option>
               <option value="ajourne">Ajourné</option>
               <option value="defavorable">Défavorable</option>
             </select>
@@ -3215,6 +3216,7 @@ const STATUTS_DOSSIER = {
   regul:         { l: "MEP à régulariser",   icon: "⏳", color: "#6b21a8", bg: "#f3e8ff" },
   mep:           { l: "MEP",                 icon: "💰", color: "#15803d", bg: "#dcfce7" },
   desistement:   { l: "Désistement client",  icon: "🚫", color: "#c2410c", bg: "#fff7ed" },
+  abandon:       { l: "Abandon",             icon: "🗑️", color: "#57534e", bg: "#f5f5f4" },
   ajourne:       { l: "Ajourné",             icon: "⏸️", color: "#78716c", bg: "#f5f5f4" },
   defavorable:   { l: "Défavorable",         icon: "❌", color: "#CC0000", bg: "#fef2f2" }
 };
@@ -3423,7 +3425,7 @@ function toggleDosSousStatut() {
 
   const hintComment = document.getElementById("dos_comment_hint");
   if (hintComment) {
-    const requisComment = statut === "validation_dg";
+    const requisComment = statut === "validation_dg" || statut === "desistement" || statut === "abandon";
     hintComment.textContent = requisComment ? "obligatoire" : "(optionnel)";
     hintComment.style.color = requisComment ? "#CC0000" : "var(--muted)";
   }
@@ -3509,6 +3511,13 @@ async function saveStatutDossier() {
     return;
   }
 
+  // Commentaire obligatoire pour un abandon (le dossier part directement en corbeille
+  // juste après — c'est la dernière occasion de tracer le motif)
+  if (newStatut === "abandon" && !comment) {
+    toast("Un commentaire précisant le motif de l'abandon est obligatoire", "error");
+    return;
+  }
+
   const sousStatutChanged = newStatut === "exploit" && newStatut === (r.statut_dossier || "exploit") && newSousStatut !== (r.sous_statut_exploit || null);
   const sousStatutEngagementChanged = (newStatut === "vmep" || newStatut === "regul") && newStatut === (r.statut_dossier || "exploit") && newSousStatutEngagement !== (r.sous_statut_engagement || null);
   const sousStatutRisqueChanged = newStatut === "risque" && newStatut === (r.statut_dossier || "exploit") && newSousStatutRisque !== (r.sous_statut_risque || null);
@@ -3531,6 +3540,8 @@ async function saveStatutDossier() {
     garantie: newGarantie
   });
 
+  const isAbandon = newStatut === "abandon";
+
   try {
     const patch = {
       statut_dossier: newStatut,
@@ -3543,6 +3554,15 @@ async function saveStatutDossier() {
     if (newMontant) patch.montant_valide = newMontant;
     if (newDuree) patch.duree_validee = newDuree;
     if (newGarantie) patch.garantie = newGarantie;
+
+    // Un abandon place directement le dossier en corbeille (suppression douce) :
+    // il disparaît de toutes les vues actives, récupérable ensuite par un manager
+    // depuis la Corbeille comme n'importe quel autre dossier supprimé.
+    if (isAbandon) {
+      patch.supprime = true;
+      patch.supprime_par = currentUser.nom;
+      patch.supprime_le = new Date().toISOString();
+    }
 
     const resp = await fetch(`${SB_URL}/rest/v1/dossiers?id=eq.${currentDosId}`, {
       method: "PATCH",
@@ -3558,6 +3578,18 @@ async function saveStatutDossier() {
     if (!resp.ok) {
       const errBody = await resp.text();
       throw new Error("Erreur Supabase " + resp.status + " : " + errBody);
+    }
+
+    if (isAbandon) {
+      // Le dossier est supprimé : on le retire de la mémoire locale plutôt que de
+      // mettre à jour ses champs, sinon il continuerait d'apparaître dans les vues.
+      allData = allData.filter(x => x.id !== currentDosId);
+      closeDosModal();
+      renderDossiers();
+      renderKpiStatuts();
+      if (document.getElementById("view-dashboard")?.classList.contains("active")) renderDashboard();
+      toast("Dossier abandonné et déplacé vers la corbeille 🗑️", "success");
+      return;
     }
 
     // Mise à jour locale uniquement si le PATCH a réussi
