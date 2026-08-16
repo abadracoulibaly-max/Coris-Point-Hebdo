@@ -197,6 +197,7 @@ tr:hover td{background:var(--navy-light);}
 @media(max-width:600px){.form-grid{grid-template-columns:1fr;}.kpi-row{grid-template-columns:1fr 1fr;}.synth-grid{grid-template-columns:1fr 1fr;}.admin-grid{grid-template-columns:1fr;}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 </head>
 <body>
 
@@ -351,6 +352,7 @@ tr:hover td{background:var(--navy-light);}
   <button class="nav-tab" onclick="showTab('synthese',this)">🗂 Synthèse</button>
   <button class="nav-tab" onclick="showTab('objectifs',this)">🎯 Objectifs</button>
   <button class="nav-tab" onclick="showTab('analyse',this)">🔬 Analyse</button>
+  <button class="nav-tab" onclick="showTab('codir',this)">📊 Rapport CODIR</button>
 </div>
 <div class="nav-dropdown-menu manager-only" id="navMenuAdmin">
   <button class="nav-tab" onclick="showTab('corbeille',this)">🗑️ Corbeille</button>
@@ -965,6 +967,25 @@ tr:hover td{background:var(--navy-light);}
       <thead><tr><th>CAF</th><th>Déposés</th><th>En analyse</th><th>Validés</th><th>MEP</th><th>Taux transfo</th><th>Performance</th></tr></thead>
       <tbody id="ana_transfo"></tbody>
     </table></div>
+  </div>
+</div>
+
+<!-- RAPPORT CODIR -->
+<div class="view" id="view-codir">
+  <div class="section-header"><div class="section-title">📊 Rapport CODIR</div><div class="section-desc">Génère le PowerPoint hebdomadaire du Comité de Direction (prévu vs réalisé + portefeuille en circuit)</div></div>
+  <div class="filter-bar">
+    <select id="codir_sem"><option value="">-- Sélectionner une semaine --</option></select>
+    <button class="btn-export" style="background:var(--navy);color:white" onclick="generateCodirPptx()" id="codir_btn">📊 Générer le PowerPoint</button>
+  </div>
+  <div id="codir_apercu" style="display:none">
+    <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
+      <div class="kpi-card"><div class="kpi-label">Déposés</div><div class="kpi-value" id="codir_kpi_dep">—</div><div class="kpi-sub" id="codir_kpi_dep_vol">—</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">Prévisions</div><div class="kpi-value" id="codir_kpi_prevu">—</div><div class="kpi-sub" id="codir_kpi_prevu_vol">—</div></div>
+      <div class="kpi-card gold"><div class="kpi-label">En analyse</div><div class="kpi-value" id="codir_kpi_analyse">—</div><div class="kpi-sub">Risque + DG + Exploit.</div></div>
+      <div class="kpi-card"><div class="kpi-label">Validés Non MEP</div><div class="kpi-value" id="codir_kpi_vmep">—</div><div class="kpi-sub" id="codir_kpi_vmep_vol">—</div></div>
+      <div class="kpi-card red"><div class="kpi-label">Ajournés</div><div class="kpi-value" id="codir_kpi_ajourne">—</div><div class="kpi-sub" id="codir_kpi_ajourne_vol">—</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px">Aperçu des chiffres qui seront inclus dans le PowerPoint — vérifiez avant de générer. Le fichier compte automatiquement les slides de détail nécessaires (pagination auto si une liste dépasse 12 dossiers).</div>
   </div>
 </div>
 
@@ -1656,6 +1677,7 @@ function showTab(name,el){
   if(name==="admin") { loadUsers(); }
   if(name==="vuerisque") { refreshAndRenderVueRisque(); }
   if(name==="vueengagement") { refreshAndRenderVueEngagement(); }
+  if(name==="codir") { populateCodirSemaines(); }
 }
 
 // Rechargent depuis Supabase avant d'afficher, comme refreshAndRenderDossiers()
@@ -4014,6 +4036,431 @@ function populateCAFObjMois() {
   }).join("");
   sel.value = currentMois;
   renderCAFObjectifs();
+}
+
+// ====== RAPPORT CODIR (génération PowerPoint hebdomadaire) ======
+// Le rapport compare la semaine sélectionnée (prévu = mod "comite", réalisé =
+// mod "deposes", tous deux filtrés sur le champ "semaine") au portefeuille en
+// circuit actuel (statut_dossier courant : risque/exploit/validation_dg/vmep/
+// ajourne — état présent, non borné par semaine, comme les KPI du Dashboard).
+const CODIR_COLORS = {
+  navy: "1A3A7A", blue: "1A5CA8", gold: "C8A84B", rouge: "CC0000",
+  green: "16A34A", grey: "6B7280", lightgrey: "F2F2F2", white: "FFFFFF"
+};
+const CODIR_TYPE_PALETTE = ["1A3A7A", "1A5CA8", "C8A84B", "16A34A", "CC0000", "6B7280", "94A3B8"];
+const CODIR_ROWS_PER_PAGE_DETAIL = 12;
+
+function codirFmtM(n) {
+  const m = (n || 0) / 1e6;
+  return m.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " M";
+}
+function codirFmtMShort(n) {
+  const m = (n || 0) / 1e6;
+  return Number(m.toFixed(1));
+}
+function codirFmtInt(n) { return (n || 0).toLocaleString("fr-FR"); }
+function codirFmtMontant(n) { return (n || 0).toLocaleString("fr-FR"); }
+function codirFmtPct1(n) { return n.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " %"; }
+
+function populateCodirSemaines() {
+  const sel = document.getElementById("codir_sem");
+  if (!sel) return;
+  const semaines = [...new Set(allData.filter(r => (r.mod === "comite" || r.mod === "deposes") && r.semaine).map(r => r.semaine))].sort().reverse();
+  const derniereSemaineComplete = getWeek(new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0]);
+  const valeurCible = semaines.includes(derniereSemaineComplete) ? derniereSemaineComplete : (semaines[0] || "");
+  sel.innerHTML = '<option value="">-- Sélectionner une semaine --</option>' + semaines.map(s => `<option${s === valeurCible ? " selected" : ""}>${s}</option>`).join("");
+  sel.onchange = renderCodirApercu;
+  renderCodirApercu();
+}
+
+// Etat courant (non borné par semaine) d'un statut_dossier : agrégats par CAF,
+// par type de crédit, et liste détaillée triée — réutilisé par les 4 TCD du rapport.
+function getStatutSnapshotForCodir(statut) {
+  const rows = allData.filter(r => r.mod === "deposes" && r.statut_dossier === statut);
+  const byCaf = {};
+  const byType = {};
+  rows.forEach(r => {
+    const m = r.montant_valide || r.montant || 0;
+    if (!byCaf[r.caf]) byCaf[r.caf] = { caf: r.caf, nb: 0, montant: 0 };
+    byCaf[r.caf].nb++;
+    byCaf[r.caf].montant += m;
+    const t = r.type || "Autre";
+    byType[t] = (byType[t] || 0) + m;
+  });
+  const totalMontant = rows.reduce((s, r) => s + (r.montant_valide || r.montant || 0), 0);
+  const parCaf = Object.values(byCaf)
+    .sort((a, b) => b.montant - a.montant)
+    .map(c => ({ ...c, pctVol: totalMontant ? (c.montant / totalMontant * 100) : 0 }));
+  const parType = Object.entries(byType)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, montant]) => ({ type, montant }));
+  const detail = rows.slice()
+    .sort((a, b) => (a.caf || "").localeCompare(b.caf || "") || (a.date || "").localeCompare(b.date || ""))
+    .map(r => ({
+      date: r.date, caf: r.caf, nom: r.nom, type: r.type || "—",
+      montant: r.montant_valide || r.montant || 0,
+      duree: r.duree_validee || r.duree || null
+    }));
+  return { nb: rows.length, montant: totalMontant, parCaf, parType, detail };
+}
+
+function computeCodirData(sem) {
+  const suivi = computeSuiviRows(sem).sort((a, b) => b.vol_realise - a.vol_realise).map(r => {
+    const statut = r.nb_prevu === 0 ? "Non planifié"
+      : r.nb_realise === 0 ? "Aucun dépôt"
+      : r.ecart_nb >= 0 ? "Objectif atteint"
+      : "En retard";
+    const pct_nb = r.nb_prevu > 0 ? Math.round((r.nb_realise / r.nb_prevu) * 100) : null;
+    const pct_vol = r.vol_prevu > 0 ? Math.round((r.vol_realise / r.vol_prevu) * 100) : null;
+    return { ...r, statut, pct_nb, pct_vol };
+  });
+
+  const totPrevu = suivi.reduce((s, r) => s + r.nb_prevu, 0);
+  const totRealise = suivi.reduce((s, r) => s + r.nb_realise, 0);
+  const totVolPrevu = suivi.reduce((s, r) => s + r.vol_prevu, 0);
+  const totVolRealise = suivi.reduce((s, r) => s + r.vol_realise, 0);
+  const pctNb = totPrevu ? Math.round((totRealise / totPrevu) * 100) : 0;
+  const pctVol = totVolPrevu ? Math.round((totVolRealise / totVolPrevu) * 100) : 0;
+
+  const risque = getStatutSnapshotForCodir("risque");
+  const exploit = getStatutSnapshotForCodir("exploit");
+  const dg = getStatutSnapshotForCodir("validation_dg");
+  const vmep = getStatutSnapshotForCodir("vmep");
+  const ajourne = getStatutSnapshotForCodir("ajourne");
+
+  const enAnalyseNb = risque.nb + exploit.nb + dg.nb;
+  const circuitNb = risque.nb + exploit.nb + vmep.nb + ajourne.nb;
+  const circuitVol = risque.montant + exploit.montant + vmep.montant + ajourne.montant;
+
+  return {
+    semaine: sem, suivi,
+    totPrevu, totRealise, totVolPrevu, totVolRealise, pctNb, pctVol,
+    risque, exploit, dg, vmep, ajourne, enAnalyseNb, circuitNb, circuitVol
+  };
+}
+
+function renderCodirApercu() {
+  const sem = document.getElementById("codir_sem").value;
+  const box = document.getElementById("codir_apercu");
+  if (!sem) { box.style.display = "none"; return; }
+  box.style.display = "block";
+  const d = computeCodirData(sem);
+  document.getElementById("codir_kpi_dep").textContent = d.totRealise;
+  document.getElementById("codir_kpi_dep_vol").textContent = fmtM(d.totVolRealise);
+  document.getElementById("codir_kpi_prevu").textContent = d.totPrevu;
+  document.getElementById("codir_kpi_prevu_vol").textContent = fmtM(d.totVolPrevu);
+  document.getElementById("codir_kpi_analyse").textContent = d.enAnalyseNb;
+  document.getElementById("codir_kpi_vmep").textContent = d.vmep.nb;
+  document.getElementById("codir_kpi_vmep_vol").textContent = fmtM(d.vmep.montant);
+  document.getElementById("codir_kpi_ajourne").textContent = d.ajourne.nb;
+  document.getElementById("codir_kpi_ajourne_vol").textContent = fmtM(d.ajourne.montant);
+}
+
+// ---- Construction du fichier PowerPoint (PptxGenJS, généré côté navigateur) ----
+
+function codirHeader(pres, slide, title, subtitle, badgeText) {
+  slide.background = { color: CODIR_COLORS.white };
+  slide.addShape(pres.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 1.15, fill: { color: CODIR_COLORS.navy }, line: { type: "none" } });
+  slide.addShape(pres.ShapeType.rect, { x: 0, y: 1.15, w: 13.33, h: 0.04, fill: { color: CODIR_COLORS.gold }, line: { type: "none" } });
+  slide.addText(title, { x: 0.4, y: 0.18, w: 9.2, h: 0.5, fontSize: 26, bold: true, color: CODIR_COLORS.white, fontFace: "Arial" });
+  slide.addText(subtitle, { x: 0.4, y: 0.68, w: 9.2, h: 0.35, fontSize: 13, color: "CADCFC", fontFace: "Arial" });
+  if (badgeText) {
+    slide.addShape(pres.ShapeType.roundRect, { x: 9.9, y: 0.18, w: 3.03, h: 0.8, fill: { color: CODIR_COLORS.white }, line: { type: "none" }, rectRadius: 0.08 });
+    slide.addText(badgeText, { x: 9.95, y: 0.18, w: 2.93, h: 0.8, fontSize: 12, bold: true, color: CODIR_COLORS.navy, align: "center", valign: "middle", fontFace: "Arial", lineSpacingMultiple: 1.25 });
+  }
+}
+function codirFooter(slide, sem) {
+  slide.addText("CODIR — " + sem, { x: 10.3, y: 7.18, w: 2.8, h: 0.25, fontSize: 9, color: "9CA3AF", align: "right", fontFace: "Arial" });
+}
+function codirStatutColor(statut) {
+  if (statut === "Objectif atteint") return CODIR_COLORS.green;
+  if (statut === "Non planifié") return CODIR_COLORS.grey;
+  return CODIR_COLORS.rouge; // En retard / Aucun dépôt
+}
+
+// Table TCD (par CAF) avec ligne TOTAL rouge — utilisée sur les slides Risque/
+// Exploitation/Validés Non MEP/Ajournés.
+function codirAddTcdTable(pres, slide, snapshot, x, y, w) {
+  const rows = [[
+    { text: "Chargé d'Affaires", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy } } },
+    { text: "Nb", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } },
+    { text: "Montant (FCFA)", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "right" } },
+    { text: "% Volume", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } }
+  ]];
+  snapshot.parCaf.forEach((c, i) => {
+    const bg = i % 2 === 1 ? CODIR_COLORS.lightgrey : CODIR_COLORS.white;
+    rows.push([
+      { text: c.caf, options: { fill: { color: bg } } },
+      { text: String(c.nb), options: { fill: { color: bg }, align: "center" } },
+      { text: codirFmtMontant(c.montant), options: { fill: { color: bg }, align: "right" } },
+      { text: codirFmtPct1(c.pctVol), options: { fill: { color: bg }, align: "center", color: CODIR_COLORS.blue, bold: true } }
+    ]);
+  });
+  rows.push([
+    { text: "TOTAL", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge } } },
+    { text: String(snapshot.nb), options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge }, align: "center" } },
+    { text: codirFmtMontant(snapshot.montant), options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge }, align: "right" } },
+    { text: "100 %", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge }, align: "center" } }
+  ]);
+  const rowH = Math.min(0.28, 4.9 / rows.length);
+  slide.addTable(rows, { x, y, w, colW: [w * 0.46, w * 0.14, w * 0.24, w * 0.16], rowH, fontSize: 10, fontFace: "Arial", border: { type: "solid", color: "E5E7EB", pt: 0.5 }, valign: "middle", autoPage: false });
+}
+
+// Graphique barres horizontales "Top CAF" + anneau "Répartition par type" —
+// utilisés à droite des 4 TCD.
+function codirAddSnapshotCharts(pres, slide, snapshot, x, y, w) {
+  const top = snapshot.parCaf.slice(0, 8).slice().reverse();
+  slide.addText("Top CAF — Volume (M FCFA)", { x, y, w, h: 0.3, fontSize: 12, bold: true, color: CODIR_COLORS.navy, align: "center", fontFace: "Arial" });
+  slide.addChart(pres.ChartType.bar, [{
+    name: "Montant (M FCFA)",
+    labels: top.map(c => c.caf.split(" ")[0]),
+    values: top.map(c => codirFmtMShort(c.montant))
+  }], {
+    x, y: y + 0.3, w, h: 2.5, barDir: "bar", chartColors: [CODIR_COLORS.blue],
+    showValue: true, dataLabelFontSize: 9, dataLabelColor: "374151", dataLabelPosition: "outEnd",
+    catAxisLabelFontSize: 9, valAxisLabelFontSize: 8, showLegend: false, valAxisLabelFormatCode: "0",
+    catGridLine: { style: "none" }
+  });
+
+  slide.addText("Répartition par type de crédit", { x, y: y + 3, w, h: 0.3, fontSize: 12, bold: true, color: CODIR_COLORS.navy, align: "center", fontFace: "Arial" });
+  slide.addChart(pres.ChartType.doughnut, [{
+    name: "Volume",
+    labels: snapshot.parType.map(t => t.type),
+    values: snapshot.parType.map(t => codirFmtMShort(t.montant))
+  }], {
+    x: x + w / 2 - 1.1, y: y + 3.3, w: 2.2, h: 2.0,
+    chartColors: CODIR_TYPE_PALETTE, showLegend: true, legendPos: "b", legendFontSize: 9,
+    dataLabelColor: CODIR_COLORS.white, showPercent: false
+  });
+}
+
+// Slides "TCD par CAF" (Risque / Exploitation / Validés Non MEP / Ajournés)
+function codirBuildTcdSlide(pres, sem, titre, sousTitre, snapshot) {
+  const slide = pres.addSlide();
+  codirHeader(pres, slide, titre, sousTitre, `${snapshot.nb} dossiers\n${codirFmtMShort(snapshot.montant)} M FCFA`);
+  codirAddTcdTable(pres, slide, snapshot, 0.4, 1.5, 6.6);
+  codirAddSnapshotCharts(pres, slide, snapshot, 7.3, 1.5, 5.6);
+  codirFooter(slide, sem);
+}
+
+// Slides "détail des dossiers" (client par client), paginées automatiquement.
+function codirBuildDetailSlides(pres, sem, titreBase, sousTitreBase, snapshot) {
+  const pages = [];
+  for (let i = 0; i < snapshot.detail.length; i += CODIR_ROWS_PER_PAGE_DETAIL) {
+    pages.push(snapshot.detail.slice(i, i + CODIR_ROWS_PER_PAGE_DETAIL));
+  }
+  if (!pages.length) pages.push([]);
+  pages.forEach((page, idx) => {
+    const suffixe = pages.length > 1 ? `  (${idx + 1}/${pages.length})` : "";
+    const slide = pres.addSlide();
+    codirHeader(pres, slide, titreBase + suffixe, sousTitreBase + (idx > 0 ? " — suite" : ""), `${snapshot.nb} dossiers\n${codirFmtMShort(snapshot.montant)} M FCFA`);
+    const rows = [[
+      { text: "Dépôt", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy } } },
+      { text: "Chargé d'Affaires", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy } } },
+      { text: "Client", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy } } },
+      { text: "Type", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } },
+      { text: "Montant (FCFA)", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "right" } },
+      { text: "Durée", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } }
+    ]];
+    page.forEach((r, i) => {
+      const bg = i % 2 === 1 ? CODIR_COLORS.lightgrey : CODIR_COLORS.white;
+      rows.push([
+        { text: fmtD(r.date), options: { fill: { color: bg }, fontSize: 10 } },
+        { text: r.caf, options: { fill: { color: bg }, fontSize: 10 } },
+        { text: r.nom, options: { fill: { color: bg }, fontSize: 10 } },
+        { text: r.type, options: { fill: { color: bg }, align: "center", fontSize: 10 } },
+        { text: codirFmtMontant(r.montant), options: { fill: { color: bg }, align: "right", fontSize: 10 } },
+        { text: r.duree ? String(r.duree) : "—", options: { fill: { color: bg }, align: "center", fontSize: 10 } }
+      ]);
+    });
+    if (idx === pages.length - 1) {
+      rows.push([
+        { text: "TOTAL", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge } } },
+        { text: "", options: { fill: { color: CODIR_COLORS.rouge } } },
+        { text: "", options: { fill: { color: CODIR_COLORS.rouge } } },
+        { text: "", options: { fill: { color: CODIR_COLORS.rouge } } },
+        { text: codirFmtMontant(snapshot.montant), options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge }, align: "right" } },
+        { text: "", options: { fill: { color: CODIR_COLORS.rouge } } }
+      ]);
+    }
+    const rowH = Math.min(0.34, 5.1 / rows.length);
+    slide.addTable(rows, { x: 0.4, y: 1.5, w: 12.53, colW: [1.2, 2.3, 4.0, 1.0, 2.53, 1.5], rowH, fontSize: 10, fontFace: "Arial", border: { type: "solid", color: "E5E7EB", pt: 0.5 }, valign: "middle", autoPage: false });
+    codirFooter(slide, sem);
+  });
+}
+
+async function generateCodirPptx() {
+  const sem = document.getElementById("codir_sem").value;
+  if (!sem) { toast("Sélectionnez une semaine", "error"); return; }
+  const btn = document.getElementById("codir_btn");
+  btn.disabled = true;
+  btn.textContent = "⏳ Génération en cours...";
+  try {
+    await syncData(true);
+    const d = computeCodirData(sem);
+    const pres = new PptxGenJS();
+    pres.layout = "LAYOUT_WIDE";
+    const genereLe = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+
+    // ---- Slide 1 : couverture ----
+    let s1 = pres.addSlide();
+    s1.background = { color: CODIR_COLORS.navy };
+    s1.addText("CORIS MÉSOFINANCE CÔTE D'IVOIRE", { x: 0.6, y: 1.7, w: 8, h: 0.4, fontSize: 14, bold: true, color: CODIR_COLORS.gold, charSpacing: 2, fontFace: "Arial" });
+    s1.addText("PRÉSENTATION CODIR", { x: 0.6, y: 2.05, w: 10, h: 0.9, fontSize: 40, bold: true, color: CODIR_COLORS.white, fontFace: "Arial" });
+    s1.addText(`Activité commerciale — ${sem.replace(" ", " / ")}`, { x: 0.6, y: 2.85, w: 9, h: 0.4, fontSize: 16, color: "CADCFC", fontFace: "Arial" });
+    s1.addShape(pres.ShapeType.line, { x: 0.6, y: 3.35, w: 1.25, h: 0, line: { color: CODIR_COLORS.gold, width: 2 } });
+    s1.addShape(pres.ShapeType.rect, { x: 0, y: 3.6, w: 13.33, h: 2.0, fill: { color: "16265A" }, line: { type: "none" } });
+    const coverStats = [
+      [String(d.totRealise), "Dossiers déposés"],
+      [codirFmtM(d.totVolRealise), "Volume déposé (FCFA)"],
+      [d.pctNb + " %", "Réalisation en nombre"],
+      [d.pctVol + " %", "Réalisation en volume"]
+    ];
+    coverStats.forEach((c, i) => {
+      const x = 0.6 + i * 2.9;
+      s1.addText(c[0], { x, y: 3.95, w: 2.6, h: 0.6, fontSize: 30, bold: true, color: CODIR_COLORS.white, fontFace: "Arial" });
+      s1.addText(c[1], { x, y: 4.55, w: 2.6, h: 0.35, fontSize: 11, color: "9CB3D9", fontFace: "Arial" });
+    });
+    s1.addText(`Direction Commerciale  •  ${currentUser.nom}  •  ${genereLe}`, { x: 0.6, y: 6.9, w: 10, h: 0.3, fontSize: 11, color: "9CB3D9", fontFace: "Arial" });
+
+    // ---- Slide 2 : synthèse générale ----
+    let s2 = pres.addSlide();
+    codirHeader(pres, s2, "Synthèse générale", `Vue d'ensemble du portefeuille — ${sem}`, sem);
+    const kpis = [
+      [d.totRealise, "Déposés", codirFmtM(d.totVolRealise), CODIR_COLORS.navy],
+      [d.totPrevu, "Prévisions", codirFmtM(d.totVolPrevu), CODIR_COLORS.blue],
+      [d.enAnalyseNb, "En analyse", "Risque + DG + Exploit.", CODIR_COLORS.gold],
+      [d.vmep.nb, "Validés Non MEP", codirFmtM(d.vmep.montant) + " FCFA", CODIR_COLORS.green],
+      [d.ajourne.nb, "Ajournés", codirFmtM(d.ajourne.montant) + " FCFA", CODIR_COLORS.rouge]
+    ];
+    kpis.forEach((k, i) => {
+      const x = 0.4 + i * 2.5;
+      s2.addShape(pres.ShapeType.roundRect, { x, y: 1.5, w: 2.32, h: 1.35, fill: { color: k[3] }, line: { type: "none" }, rectRadius: 0.06 });
+      s2.addText(String(k[0]), { x, y: 1.6, w: 2.32, h: 0.55, fontSize: 26, bold: true, color: CODIR_COLORS.white, align: "center", fontFace: "Arial" });
+      s2.addText(k[1], { x, y: 2.15, w: 2.32, h: 0.3, fontSize: 11, bold: true, color: CODIR_COLORS.white, align: "center", fontFace: "Arial" });
+      s2.addText(k[2], { x, y: 2.48, w: 2.32, h: 0.3, fontSize: 9, color: "E5E7EB", align: "center", fontFace: "Arial" });
+    });
+    s2.addText("Volume par module (M FCFA)", { x: 0.4, y: 3.15, w: 7.2, h: 0.3, fontSize: 13, bold: true, color: CODIR_COLORS.navy, align: "center", fontFace: "Arial" });
+    s2.addChart(pres.ChartType.bar, [{
+      name: "Volume (M FCFA)",
+      labels: ["Déposés", "Prévisions", "Risque", "Exploitation", "Val. Non MEP", "Ajournés"],
+      values: [d.totVolRealise, d.totVolPrevu, d.risque.montant, d.exploit.montant, d.vmep.montant, d.ajourne.montant].map(codirFmtMShort)
+    }], {
+      x: 0.4, y: 3.5, w: 7.2, h: 3.4, barDir: "col", chartColors: [CODIR_COLORS.navy],
+      showValue: true, dataLabelFontSize: 9, dataLabelPosition: "outEnd", showLegend: false,
+      catAxisLabelFontSize: 9, valAxisLabelFontSize: 8, catGridLine: { style: "none" }
+    });
+    s2.addShape(pres.ShapeType.roundRect, { x: 7.95, y: 3.15, w: 4.98, h: 1.6, fill: { color: "EEF2FF" }, line: { type: "none" }, rectRadius: 0.06 });
+    s2.addText(d.pctVol + " %", { x: 7.95, y: 3.3, w: 4.98, h: 0.65, fontSize: 32, bold: true, color: CODIR_COLORS.green, align: "center", fontFace: "Arial" });
+    s2.addText(`Réalisation dépôts en volume\n${codirFmtM(d.totVolRealise)} réalisés / ${codirFmtM(d.totVolPrevu)} prévus`, { x: 7.95, y: 3.95, w: 4.98, h: 0.7, fontSize: 10, color: CODIR_COLORS.grey, align: "center", fontFace: "Arial" });
+    s2.addShape(pres.ShapeType.roundRect, { x: 7.95, y: 4.95, w: 4.98, h: 1.6, fill: { color: "EEF2FF" }, line: { type: "none" }, rectRadius: 0.06 });
+    s2.addText(codirFmtM(d.circuitVol), { x: 7.95, y: 5.1, w: 4.98, h: 0.65, fontSize: 30, bold: true, color: CODIR_COLORS.navy, align: "center", fontFace: "Arial" });
+    s2.addText(`Portefeuille en circuit — ${d.circuitNb} dossiers\n(Risque, Exploitation, Validés, Ajournés)`, { x: 7.95, y: 5.75, w: 4.98, h: 0.7, fontSize: 10, color: CODIR_COLORS.grey, align: "center", fontFace: "Arial" });
+    codirFooter(s2, sem);
+
+    // ---- Slides 3-4 : Déposé vs Prévision (paginé) ----
+    const suiviPages = [];
+    for (let i = 0; i < d.suivi.length; i += 10) suiviPages.push(d.suivi.slice(i, i + 10));
+    if (!suiviPages.length) suiviPages.push([]);
+    suiviPages.forEach((page, idx) => {
+      const slide = pres.addSlide();
+      const suffixe = suiviPages.length > 1 ? `  (${idx + 1}/${suiviPages.length})` : "";
+      codirHeader(pres, slide, "Déposé vs Prévision" + suffixe, `Dépôts de la semaine ${sem} — prévu vs réalisé par Chargé d'Affaires` + (idx > 0 ? " — suite" : ""), `${d.totRealise} / ${d.totPrevu} dossiers\n${codirFmtM(d.totVolRealise)} / ${codirFmtM(d.totVolPrevu)}`);
+      const rows = [[
+        { text: "Chargé d'Affaires", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy } } },
+        { text: "Prévu", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } },
+        { text: "Vol. prévu", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "right" } },
+        { text: "Réalisé", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } },
+        { text: "Vol. réalisé", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "right" } },
+        { text: "% Nb", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } },
+        { text: "% Vol.", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } },
+        { text: "Statut", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } }
+      ]];
+      page.forEach((r, i) => {
+        const bg = i % 2 === 1 ? CODIR_COLORS.lightgrey : CODIR_COLORS.white;
+        rows.push([
+          { text: r.caf, options: { fill: { color: bg }, fontSize: 10 } },
+          { text: String(r.nb_prevu), options: { fill: { color: bg }, align: "center", fontSize: 10 } },
+          { text: codirFmtM(r.vol_prevu), options: { fill: { color: bg }, align: "right", fontSize: 10 } },
+          { text: String(r.nb_realise), options: { fill: { color: bg }, align: "center", fontSize: 10, bold: true } },
+          { text: codirFmtM(r.vol_realise), options: { fill: { color: bg }, align: "right", fontSize: 10, bold: true } },
+          { text: r.pct_nb === null ? "—" : r.pct_nb + " %", options: { fill: { color: bg }, align: "center", fontSize: 10 } },
+          { text: r.pct_vol === null ? "—" : r.pct_vol + " %", options: { fill: { color: bg }, align: "center", fontSize: 10 } },
+          { text: r.statut, options: { fill: { color: bg }, align: "center", fontSize: 9, bold: true, color: codirStatutColor(r.statut) } }
+        ]);
+      });
+      if (idx === suiviPages.length - 1) {
+        rows.push([
+          { text: "TOTAL", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge } } },
+          { text: String(d.totPrevu), options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge }, align: "center" } },
+          { text: codirFmtM(d.totVolPrevu), options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge }, align: "right" } },
+          { text: String(d.totRealise), options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge }, align: "center" } },
+          { text: codirFmtM(d.totVolRealise), options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge }, align: "right" } },
+          { text: d.pctNb + " %", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge }, align: "center" } },
+          { text: d.pctVol + " %", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge }, align: "center" } },
+          { text: "", options: { fill: { color: CODIR_COLORS.rouge } } }
+        ]);
+      }
+      const tableW = suiviPages.length > 1 && idx === 0 ? 7.4 : 12.53;
+      const rowH = Math.min(0.32, 5.0 / rows.length);
+      slide.addTable(rows, { x: 0.4, y: 1.5, w: tableW, colW: tableW === 7.4 ? [1.7, 0.7, 1.1, 0.7, 1.1, 0.7, 0.7, 1.1] : [2.3, 1.0, 1.6, 1.0, 1.6, 1.0, 1.0, 2.03], rowH, fontSize: 10, fontFace: "Arial", border: { type: "solid", color: "E5E7EB", pt: 0.5 }, valign: "middle", autoPage: false });
+
+      if (idx === 0) {
+        // Graphique prévu vs réalisé (top 8 CAF par volume réalisé)
+        const top = d.suivi.slice(0, 8).slice().reverse();
+        slide.addText("Prévu vs Réalisé (M FCFA)", { x: 8.1, y: 1.5, w: 4.83, h: 0.3, fontSize: 12, bold: true, color: CODIR_COLORS.navy, align: "center", fontFace: "Arial" });
+        slide.addChart(pres.ChartType.bar, [
+          { name: "Réalisé", labels: top.map(r => r.caf.split(" ")[0]), values: top.map(r => codirFmtMShort(r.vol_realise)) },
+          { name: "Prévu", labels: top.map(r => r.caf.split(" ")[0]), values: top.map(r => codirFmtMShort(r.vol_prevu)) }
+        ], {
+          x: 8.1, y: 1.85, w: 4.83, h: 4.9, barDir: "bar", chartColors: [CODIR_COLORS.rouge, CODIR_COLORS.blue],
+          showValue: false, showLegend: true, legendPos: "b", legendFontSize: 9,
+          catAxisLabelFontSize: 9, valAxisLabelFontSize: 8, catGridLine: { style: "none" }
+        });
+      } else if (idx === suiviPages.length - 1) {
+        // Répartition qualitative des statuts (dernière slide de la pagination)
+        const compte = { "Objectif atteint": 0, "En retard": 0, "Aucun dépôt": 0, "Non planifié": 0 };
+        d.suivi.forEach(r => { compte[r.statut] = (compte[r.statut] || 0) + 1; });
+        slide.addText("Répartition des statuts", { x: 8.1, y: 1.5, w: 4.83, h: 0.3, fontSize: 12, bold: true, color: CODIR_COLORS.navy, align: "center", fontFace: "Arial" });
+        slide.addChart(pres.ChartType.doughnut, [{
+          name: "Statuts",
+          labels: Object.keys(compte),
+          values: Object.values(compte)
+        }], {
+          x: 9.5, y: 2.1, w: 2.0, h: 2.0,
+          chartColors: [CODIR_COLORS.green, CODIR_COLORS.rouge, "F97316", CODIR_COLORS.grey],
+          showLegend: true, legendPos: "b", legendFontSize: 9
+        });
+      }
+      codirFooter(slide, sem);
+    });
+
+    // ---- Slides Risque / Exploitation / Validés Non MEP / Ajournés ----
+    codirBuildTcdSlide(pres, sem, "Dossiers au Risque", "TCD par Chargé d'Affaires — en cours d'analyse risque", d.risque);
+    codirBuildDetailSlides(pres, sem, "Risque — détail des dossiers", "Détail client par client — en cours d'analyse risque", d.risque);
+
+    codirBuildTcdSlide(pres, sem, "Dossiers à l'Exploitation", "TCD par Chargé d'Affaires — en traitement exploitation", d.exploit);
+    codirBuildDetailSlides(pres, sem, "Exploitation — détail des dossiers", "Détail client par client — en traitement exploitation", d.exploit);
+
+    codirBuildTcdSlide(pres, sem, "Validés Non MEP", "TCD par Chargé d'Affaires — validés en attente de mise en place", d.vmep);
+    codirBuildTcdSlide(pres, sem, "Dossiers ajournés", "TCD par Chargé d'Affaires — décisions d'ajournement", d.ajourne);
+
+    // ---- Slide de clôture ----
+    let sf = pres.addSlide();
+    sf.background = { color: CODIR_COLORS.navy };
+    sf.addText("MERCI", { x: 0, y: 2.9, w: 13.33, h: 1.0, fontSize: 54, bold: true, color: CODIR_COLORS.white, align: "center", fontFace: "Arial" });
+    sf.addText("Direction Commerciale — Coris Mésofinance Côte d'Ivoire", { x: 0, y: 3.95, w: 13.33, h: 0.4, fontSize: 15, color: "CADCFC", align: "center", fontFace: "Arial" });
+    sf.addText("CODIR — " + sem, { x: 0, y: 4.3, w: 13.33, h: 0.3, fontSize: 11, color: "9CB3D9", align: "center", fontFace: "Arial" });
+
+    await pres.writeFile({ fileName: `CODIR_${sem.replace(" ", "_")}_CMF.pptx` });
+    toast("PowerPoint CODIR généré ✅", "success");
+  } catch (e) {
+    toast("Erreur génération PowerPoint : " + e.message, "error");
+    console.error("generateCodirPptx error:", e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "📊 Générer le PowerPoint";
+  }
 }
 
 // ====== INIT ======
