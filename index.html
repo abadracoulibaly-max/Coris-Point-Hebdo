@@ -664,7 +664,7 @@ tr:hover td{background:var(--navy-light);}
             </select>
           </div>
           <div>
-            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Date de transmission</label>
+            <label style="font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Date de transmission <span style="color:#CC0000;font-weight:400;text-transform:none;font-size:10px">— obligatoire</span></label>
             <input type="date" id="dos_new_date" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif">
           </div>
         </div>
@@ -3402,7 +3402,10 @@ function openDosModal(id) {
   document.getElementById("dos_new_statut").value = r.statut_dossier || "exploit";
   // Pas de pré-remplissage à la date du jour : la date doit toujours être
   // saisie explicitement (cf. bug statut_date qui dérivait silencieusement).
-  document.getElementById("dos_new_date").value = "";
+  const dosNewDateEl = document.getElementById("dos_new_date");
+  dosNewDateEl.value = "";
+  dosNewDateEl.style.borderColor = "";
+  dosNewDateEl.style.borderWidth = "";
   document.getElementById("dos_new_comment").value = "";
   document.getElementById("dos_new_montant").value = r.montant_valide || "";
   document.getElementById("dos_new_duree").value = r.duree_validee || "";
@@ -3505,7 +3508,16 @@ async function saveStatutDossier() {
   const newSousStatutRisque = newStatut === "risque" ? (document.getElementById("dos_new_sous_statut_risque")?.value || "analyste") : null;
   const newGarantie = document.getElementById("dos_new_garantie")?.value || null;
 
-  if (!newDate) { toast("La date est obligatoire — merci de la renseigner", "error"); return; }
+  const dateField = document.getElementById("dos_new_date");
+  if (!newDate) {
+    toast("La date est obligatoire — merci de la renseigner", "error");
+    dateField.style.borderColor = "#CC0000";
+    dateField.style.borderWidth = "2px";
+    dateField.focus();
+    return;
+  }
+  dateField.style.borderColor = "";
+  dateField.style.borderWidth = "";
   if(!isValidDateYear(newDate)){toast("Année de date invalide — vérifiez le champ date (ex: 2026, pas 26)","error");return;}
 
   // Garantie obligatoire dès qu'un dossier passe Validé en attente (demande Juridique,
