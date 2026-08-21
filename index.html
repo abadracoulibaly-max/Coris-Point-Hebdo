@@ -4156,6 +4156,42 @@ function renderCodirApercu() {
   document.getElementById("codir_kpi_ajourne_vol").textContent = fmtM(d.ajourne.montant);
 }
 
+// Lundi (Date) de la semaine ISO "SXX YYYY" — même algorithme que getWeek(), en sens inverse.
+function codirWeekMonday(sem) {
+  const m = sem.match(/S(\d+)\s+(\d+)/);
+  const week = parseInt(m[1], 10), year = parseInt(m[2], 10);
+  const jan4 = new Date(year, 0, 4);
+  const mondayW1 = new Date(jan4);
+  mondayW1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
+  const monday = new Date(mondayW1);
+  monday.setDate(mondayW1.getDate() + (week - 1) * 7);
+  return monday;
+}
+function codirNextSemaine(sem) {
+  const monday = codirWeekMonday(sem);
+  monday.setDate(monday.getDate() + 7);
+  return getWeek(monday.toISOString().split("T")[0]);
+}
+
+// Comités programmés (mod "comite") pour une semaine donnée — utilisé pour le
+// planning de la semaine suivante, à titre de préparation du prochain CODIR.
+const CODIR_COMTYPE_LABEL = { DEX: "DEX", CIC: "CIC", CSC: "CSC" };
+function getComitePlanningForCodir(sem) {
+  const rows = allData
+    .filter(r => r.mod === "comite" && r.semaine === sem)
+    .slice()
+    .sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.caf || "").localeCompare(b.caf || ""));
+  const montant = rows.reduce((s, r) => s + (r.montant || 0), 0);
+  return {
+    nb: rows.length, montant,
+    detail: rows.map(r => ({
+      date: r.date, caf: r.caf, nom: r.nom, type: r.type || "—",
+      montant: r.montant || 0, duree: r.duree || null,
+      comite: CODIR_COMTYPE_LABEL[r.comtype] || "—"
+    }))
+  };
+}
+
 // ---- Construction du fichier PowerPoint (PptxGenJS, généré côté navigateur) ----
 
 function codirHeader(pres, slide, title, subtitle, badgeText) {
@@ -4285,6 +4321,57 @@ function codirBuildDetailSlides(pres, sem, titreBase, sousTitreBase, snapshot) {
     }
     const rowH = Math.min(0.34, 5.1 / rows.length);
     slide.addTable(rows, { x: 0.4, y: 1.5, w: 12.53, colW: [1.2, 2.3, 4.0, 1.0, 2.53, 1.5], rowH, fontSize: 10, fontFace: "Arial", border: { type: "solid", color: "E5E7EB", pt: 0.5 }, valign: "middle", autoPage: false });
+    codirFooter(slide, sem);
+  });
+}
+
+// Slide "Planning des comités" — comités programmés pour la semaine SUIVANT
+// celle du rapport, en préparation du prochain CODIR. Paginée à 16 lignes/slide.
+function codirBuildPlanningSlides(pres, sem, semainePlanning, planning) {
+  const ROWS_PER_PAGE = 16;
+  const monday = codirWeekMonday(semainePlanning);
+  const sousTitreBase = `Comités programmés — semaine du ${monday.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}`;
+  const pages = [];
+  for (let i = 0; i < planning.detail.length; i += ROWS_PER_PAGE) pages.push(planning.detail.slice(i, i + ROWS_PER_PAGE));
+  if (!pages.length) pages.push([]);
+  pages.forEach((page, idx) => {
+    const suffixe = pages.length > 1 ? `  (${idx + 1}/${pages.length})` : "";
+    const slide = pres.addSlide();
+    codirHeader(pres, slide, "Planning des comités" + suffixe, sousTitreBase + (idx > 0 ? " — suite" : ""), `${planning.nb} comités\n${codirFmtMShort(planning.montant)} M FCFA`);
+    const rows = [[
+      { text: "Date comité", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy } } },
+      { text: "Chargé d'Affaires", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy } } },
+      { text: "Client", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy } } },
+      { text: "Type", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } },
+      { text: "Montant (FCFA)", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "right" } },
+      { text: "Durée", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } },
+      { text: "Comité", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.navy }, align: "center" } }
+    ]];
+    page.forEach((r, i) => {
+      const bg = i % 2 === 1 ? CODIR_COLORS.lightgrey : CODIR_COLORS.white;
+      rows.push([
+        { text: fmtD(r.date), options: { fill: { color: bg }, fontSize: 9 } },
+        { text: r.caf, options: { fill: { color: bg }, fontSize: 9 } },
+        { text: r.nom, options: { fill: { color: bg }, fontSize: 9 } },
+        { text: r.type, options: { fill: { color: bg }, align: "center", fontSize: 9 } },
+        { text: codirFmtMontant(r.montant), options: { fill: { color: bg }, align: "right", fontSize: 9 } },
+        { text: r.duree ? String(r.duree) : "—", options: { fill: { color: bg }, align: "center", fontSize: 9 } },
+        { text: r.comite, options: { fill: { color: bg }, align: "center", fontSize: 9 } }
+      ]);
+    });
+    if (idx === pages.length - 1) {
+      rows.push([
+        { text: "TOTAL", options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge } } },
+        { text: "", options: { fill: { color: CODIR_COLORS.rouge } } },
+        { text: "", options: { fill: { color: CODIR_COLORS.rouge } } },
+        { text: "", options: { fill: { color: CODIR_COLORS.rouge } } },
+        { text: codirFmtMontant(planning.montant), options: { bold: true, color: CODIR_COLORS.white, fill: { color: CODIR_COLORS.rouge }, align: "right" } },
+        { text: "", options: { fill: { color: CODIR_COLORS.rouge } } },
+        { text: "", options: { fill: { color: CODIR_COLORS.rouge } } }
+      ]);
+    }
+    const rowH = Math.min(0.3, 5.1 / rows.length);
+    slide.addTable(rows, { x: 0.4, y: 1.5, w: 12.53, colW: [1.35, 2.2, 3.55, 0.95, 2.28, 0.8, 1.4], rowH, fontSize: 9, fontFace: "Arial", border: { type: "solid", color: "E5E7EB", pt: 0.5 }, valign: "middle", autoPage: false });
     codirFooter(slide, sem);
   });
 }
@@ -4444,6 +4531,11 @@ async function generateCodirPptx() {
 
     codirBuildTcdSlide(pres, sem, "Validés Non MEP", "TCD par Chargé d'Affaires — validés en attente de mise en place", d.vmep);
     codirBuildTcdSlide(pres, sem, "Dossiers ajournés", "TCD par Chargé d'Affaires — décisions d'ajournement", d.ajourne);
+
+    // ---- Slide(s) : Planning des comités de la semaine suivante ----
+    const semaineSuivante = codirNextSemaine(sem);
+    const planning = getComitePlanningForCodir(semaineSuivante);
+    codirBuildPlanningSlides(pres, sem, semaineSuivante, planning);
 
     // ---- Slide de clôture ----
     let sf = pres.addSlide();
