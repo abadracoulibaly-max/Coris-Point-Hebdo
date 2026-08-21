@@ -584,15 +584,20 @@ tr:hover td{background:var(--navy-light);}
     <div class="section-title">📑 Vue Engagement</div>
     <div class="section-desc">Dossiers validés (Validé en attente, MEP, MEP à régulariser) — cliquez pour indiquer où en sont les conventions</div>
   </div>
-  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">
     <div class="kpi-card blue"><div class="kpi-label">Validé en attente</div><div class="kpi-value" id="veng_kpi_vmep">—</div><div class="kpi-sub" id="veng_kpi_vmep_vol">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">MEP à régulariser</div><div class="kpi-value" id="veng_kpi_regul">—</div><div class="kpi-sub" id="veng_kpi_regul_vol">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">MEP</div><div class="kpi-value" id="veng_kpi_mep">—</div><div class="kpi-sub" id="veng_kpi_mep_vol">—</div></div>
+  </div>
+  <div style="font-size:13px;font-weight:700;color:var(--navy);margin:18px 0 10px">
+    📝 Suivi des conventions — sur l'ensemble Validé en attente + MEP à régulariser (<span id="veng_kpi_pool_total">—</span> dossiers)
+  </div>
+  <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
     <div class="kpi-card"><div class="kpi-label">En attente dossier physique</div><div class="kpi-value" id="veng_kpi_attente_physique">—</div><div class="kpi-sub">non reçu</div></div>
     <div class="kpi-card red"><div class="kpi-label">Dossier Incomplet</div><div class="kpi-value" id="veng_kpi_attente_doc">—</div><div class="kpi-sub">documentation</div></div>
     <div class="kpi-card gold"><div class="kpi-label">Convention en cours</div><div class="kpi-value" id="veng_kpi_edition">—</div><div class="kpi-sub">édition</div></div>
     <div class="kpi-card"><div class="kpi-label">Convention transmise</div><div class="kpi-value" id="veng_kpi_transmis">—</div><div class="kpi-sub">attente signature</div></div>
     <div class="kpi-card"><div class="kpi-label">Signée — attente MEP</div><div class="kpi-value" id="veng_kpi_signee">—</div><div class="kpi-sub">à décaisser</div></div>
-    <div class="kpi-card"><div class="kpi-label">MEP à régulariser</div><div class="kpi-value" id="veng_kpi_regul">—</div><div class="kpi-sub" id="veng_kpi_regul_vol">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">MEP</div><div class="kpi-value" id="veng_kpi_mep">—</div><div class="kpi-sub" id="veng_kpi_mep_vol">—</div></div>
   </div>
   <div class="filter-bar">
     <input type="text" id="veng_search" placeholder="🔍 Rechercher un client, code client..." oninput="renderVueEngagement()" style="flex:2;min-width:180px;padding:8px 12px;font-size:12px">
@@ -1891,6 +1896,7 @@ function renderVueEngagementKpis() {
 
   document.getElementById("veng_kpi_vmep").textContent = vmepRows.length;
   document.getElementById("veng_kpi_vmep_vol").textContent = vol(vmepRows);
+  document.getElementById("veng_kpi_pool_total").textContent = conventionRows.length;
   document.getElementById("veng_kpi_attente_physique").textContent = attentePhysiqueRows.length;
   document.getElementById("veng_kpi_edition").textContent = editionRows.length;
   document.getElementById("veng_kpi_attente_doc").textContent = attenteDocRows.length;
